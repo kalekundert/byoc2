@@ -14,12 +14,15 @@ classifiers = [
   'Programming Language :: Python :: 3',
 ]
 dependencies = [
+  'networkx',
+  'more_itertools',
 ]
 
 [project.optional-dependencies]
 test = [
   'pytest',
   'parametrize_from_file',
+  'glom',
 ]
 doc = [
   'sphinx',

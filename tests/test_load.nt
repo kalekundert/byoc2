@@ -1,0 +1,512 @@
+test_load:
+  -
+    id: key
+    app:
+      > class MyApp:
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield DictConfig({'x': 1})
+      >
+      >   x = byoc.param(Key(DictConfig, 'x'))
+
+    expected:
+      x: 1
+  -
+    id: key-match-config-class
+    app:
+      > class MyConfigA(DictConfig):
+      >   pass
+      >
+      > class MyConfigB(DictConfig):
+      >   pass
+      >
+      > class MyApp:
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield MyConfigA({'x': 1})
+      >       yield MyConfigB({'x': 2})
+      >
+      >   x = byoc.param(Key(DictConfig, 'x'), pick=list)
+      >   y = byoc.param(Key(MyConfigA, 'x'), pick=list)
+      >   z = byoc.param(Key(MyConfigB, 'x'), pick=list)
+
+    expected:
+      x: [1, 2]
+      y: [1]
+      z: [2]
+  -
+    id: key-skip-missing
+    app:
+      > class MyApp:
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield DictConfig({'x2': 1})
+      >
+      >   x = byoc.param(
+      >       Key(DictConfig, 'x1'),
+      >       Key(DictConfig, 'x2'),
+      >   )
+
+    expected:
+      x: 1
+  -
+    id: key-no-value-found
+    app:
+      > class MyApp:
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield DictConfig({})
+      >
+      >   x = byoc.param(
+      >       Key(DictConfig, 'x'),
+      >   )
+
+    error:
+      type: NoValueFound
+      message: no value found for <param MyApp.x>
+  -
+    id: method
+    app:
+      > class MyApp:
+      >
+      >   def calc_x(self):
+      >       return 1
+      >
+      >   x = byoc.param(Method(calc_x))
+
+    expected:
+      x: 1
+  -
+    id: func
+    app:
+      > class MyApp:
+      >   x = byoc.param(Func(list))
+    expected:
+      x: []
+  -
+    id: value
+    app:
+      > class MyApp:
+      >   x = byoc.param(Value(1))
+    expected:
+      x: 1
+  -
+    id: cast
+    app:
+      > class MyApp:
+      >   x = byoc.param(
+      >       Value(1),
+      >       cast=lambda x: x + 1
+      >   )
+    expected:
+      x: 2
+  -
+    id: pick-first
+    app:
+      > class MyApp:
+      >   x = byoc.param(
+      >       Value(1),
+      >       Value(2),
+      >   )
+    expected:
+      x: 1
+  -
+    id: pick-list
+    app:
+      > class MyApp:
+      >   x = byoc.param(
+      >       Value(1),
+      >       Value(2),
+      >       pick=list,
+      >   )
+    expected:
+      x: [1, 2]
+  -
+    id: inheritance
+    app:
+      > class MyBase:
+      >   x = byoc.param(Value(1))
+      > class MyApp(MyBase):
+      >   y = byoc.param(Value(2))
+    expected:
+      x: 1
+      y: 2
+  -
+    id: inheritance-hidden
+    app:
+      > def do_not_call():
+      >   raise NotImplementedError
+      >
+      > class MyBase:
+      >   x = byoc.param(Func(do_not_call))
+      >
+      > class MyApp(MyBase):
+      >   x = 2
+    expected:
+      x: 2
+  -
+    id: dependencies-none
+    app:
+      > class MyApp:
+      >   x = byoc.param(Value(1))
+      >   y = byoc.param(Value(2))
+    expected:
+      x: 1
+      y: 2
+  -
+    id: dependencies-in-order
+    app:
+      > class MyApp:
+      >
+      >   def calc_y(self):
+      >       return self.x + 1
+      >
+      >   x = byoc.param(Value(1))
+      >   y = byoc.param(Method(calc_y))
+    expected:
+      x: 1
+      y: 2
+  -
+    id: dependencies-out-of-order
+    app:
+      > class MyApp:
+      >
+      >   def calc_x(self):
+      >       return self.y - 1
+      >
+      >   x = byoc.param(Method(calc_x))
+      >   y = byoc.param(Value(2))
+    expected:
+      x: 1
+      y: 2
+  -
+    id: dependencies-circular-2
+    app:
+      > class MyApp:
+      >
+      >   def calc_x(self):
+      >       return self.y
+      >
+      >   def calc_y(self):
+      >       return self.x
+      >
+      >   x = byoc.param(Method(calc_x))
+      >   y = byoc.param(Method(calc_y))
+    error:
+      type: CircularDependency
+  -
+    id: dependencies-circular-3
+    app:
+      > class MyApp:
+      >
+      >   def calc_x(self):
+      >       return self.y
+      >
+      >   def calc_y(self):
+      >       return self.z
+      >
+      >   def calc_z(self):
+      >       return self.x
+      >
+      >   x = byoc.param(Method(calc_x))
+      >   y = byoc.param(Method(calc_y))
+      >   z = byoc.param(Method(calc_z))
+    error:
+      type: CircularDependency
+  -
+    id: recursive
+    app:
+      > class MyChild:
+      >   x = byoc.param(Value(1))
+      >
+      > class MyApp:
+      >   child = byoc.param(
+      >       Value(MyChild()),
+      >       on_load=byoc.recursive_load,
+      >   )
+    expected:
+      child.x: 1
+  -
+    id: recursive-list
+    app:
+      > class MyChild:
+      >   x = byoc.param(Value(1))
+      >
+      > class MyApp:
+      >   children = byoc.param(
+      >       Value([MyChild(), MyChild()]),
+      >       on_load=byoc.recursive_load_from_list,
+      >   )
+    expected:
+      children.0.x: 1
+      children.1.x: 1
+  -
+    id: recursive-dict
+    app:
+      > class MyChild:
+      >   z = byoc.param(Value(1))
+      >
+      > class MyApp:
+      >   children = byoc.param(
+      >       Value({'x': MyChild(), 'y': MyChild()}),
+      >       on_load=byoc.recursive_load_from_dict_values,
+      >   )
+    expected:
+      children.x.z: 1
+      children.y.z: 1
+  -
+    id: recursive-configs-parent-only
+    app:
+      > class MyChild:
+      >   y = byoc.param(Key(DictConfig, 'y'))
+      >
+      > class MyApp:
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield DictConfig({'x': 1, 'y': 2})
+      >
+      >   x = byoc.param(Key(DictConfig, 'x'))
+      >   child = byoc.param(
+      >       Value(MyChild()),
+      >       on_load=byoc.recursive_load,
+      >   )
+    expected:
+      x: 1
+      child.y: 2
+  -
+    id: recursive-configs-child-only
+    app:
+      > class MyChild:
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield DictConfig({'y': 2})
+      >
+      >   y = byoc.param(Key(DictConfig, 'y'))
+      >
+      > class MyApp:
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield DictConfig({'x': 1})
+      >
+      >   x = byoc.param(Key(DictConfig, 'x'))
+      >   child = byoc.param(
+      >       Value(MyChild()),
+      >       on_load=byoc.recursive_load,
+      >   )
+    expected:
+      x: 1
+      child.y: 2
+  -
+    id: recursive-configs-child-override
+    app:
+      > class MyChild:
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield DictConfig({'y': 3})
+      >
+      >   y = byoc.param(Key(DictConfig, 'y'))
+      >
+      > class MyApp:
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield DictConfig({'x': 1, 'y': 2})
+      >
+      >   x = byoc.param(Key(DictConfig, 'x'))
+      >   child = byoc.param(
+      >       Value(MyChild()),
+      >       on_load=byoc.recursive_load,
+      >   )
+    expected:
+      x: 1
+      child.y: 3
+  -
+    id: recursive-dependencies-in-order
+    app:
+      > class MyChild:
+      >
+      >   def __init__(self, parent):
+      >       self.parent = parent
+      >
+      >   def calc_y(self):
+      >       return self.parent.x + 1
+      >
+      >   y = byoc.param(Method(calc_y))
+      >
+      > class MyApp:
+      >
+      >   def make_child(self):
+      >       return MyChild(self)
+      >
+      >   x = byoc.param(Value(1))
+      >   child = byoc.param(
+      >       Method(make_child),
+      >       on_load=byoc.recursive_load,
+      >   )
+    expected:
+      x: 1
+      child.y: 2
+  -
+    id: recursive-dependencies-out-of-order-1
+    app:
+      > class MyChild:
+      >   y = byoc.param(Value(2))
+      >
+      > class MyApp:
+      >
+      >   def calc_x(self):
+      >       return self.child.y - 1
+      >
+      >   x = byoc.param(Method(calc_x))
+      >   child = byoc.param(
+      >       Value(MyChild()),
+      >       on_load=byoc.recursive_load,
+      >   )
+    expected:
+      x: 1
+      child.y: 2
+  -
+    id: recursive-dependencies-out-of-order-2
+    app:
+      # Initially, the queue will be [`child`, `x`].  When `child` is loaded, 
+      # it will come off the queue and `child.y` will be added to the bottom, 
+      # so the queue will be [`x`, `child.y`].  Note that `x` is still before 
+      # `child.y`, even though it was after `child`.
+      > class MyChild:
+      >   y = byoc.param(Value(2))
+      >
+      > class MyApp:
+      >
+      >   def calc_x(self):
+      >       return self.child.y - 1
+      >
+      >   child = byoc.param(
+      >       Value(MyChild()),
+      >       on_load=byoc.recursive_load,
+      >   )
+      >   x = byoc.param(Method(calc_x))
+    expected:
+      x: 1
+      child.y: 2
+  -
+    id: recursive-dependencies-circular
+    app:
+      > class MyChild:
+
+      >   def __init__(self, parent):
+      >       self.parent = parent
+      >
+      >   def calc_y(self):
+      >       return self.parent.x + 1
+      >
+      >   y = byoc.param(Method(calc_y))
+      >
+      > class MyApp:
+      >
+      >   def calc_x(self):
+      >       return self.child.y - 1
+      >   
+      >   def make_child(self):
+      >       return MyChild(self)
+      >
+      >   x = byoc.param(Method(calc_x))
+      >   child = byoc.param(
+      >       Method(make_child),
+      >       on_load=byoc.recursive_load,
+      >   )
+    error:
+      type: CircularDependency
+
+test_load_collection:
+  -
+    id: list
+    app: 
+      - byoc.param(Value(1))
+      - 2
+    expected:
+      0: 1
+      1: 2
+  -
+    id: list-list
+    app: 
+      - byoc.param(Value(1))
+      - 2
+      - 
+        - byoc.param(Value(3))
+        - 4
+    expected:
+      0: 1
+      1: 2
+      2.0: 3
+      2.1: 4
+  -
+    id: list-dict
+    app: 
+      - byoc.param(Value(1))
+      - 2
+      -
+        x: byoc.param(Value(3))
+        y: 4
+    expected:
+      0: 1
+      1: 2
+      2.x: 3
+      2.y: 4
+  -
+    id: dict
+    app: 
+      x: byoc.param(Value(1))
+      y: 2
+    expected:
+      x: 1
+      y: 2
+  -
+    id: dict-dict
+    app: 
+      x: byoc.param(Value(1))
+      y: 2
+      z:
+        a: byoc.param(Value(3))
+        b: 4
+    expected:
+      x: 1
+      y: 2
+      z.a: 3
+      z.b: 4
+  -
+    id: dict-list
+    app:
+      x: byoc.param(Value(1))
+      y: 2
+      z: 
+        - byoc.param(Value(3))
+        - 4
+    expected:
+      x: 1
+      y: 2
+      z.0: 3
+      z.1: 4
+  -
+    id: configs
+    app: 
+      x: byoc.param(Key(DictConfig, 'x'))
+      y: byoc.param(Key(DictConfig, 'y'))
+    configs:
+      - DictConfig({'x': 1, 'y': 2})
+    expected:
+      x: 1
+      y: 2
+
+  -
+    id: err-not-list-or-dict
+    app: byoc.param(Value(1))
+    error:
+      type: UsageError
