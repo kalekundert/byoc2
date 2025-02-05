@@ -5,15 +5,15 @@ _pre_import_keys = set()
 _pre_import_keys |= set(globals())
 
 from .load import (
-        Loader, Task, load, load_collection, recursive_load,
+        Loader, PendingAttribute, load, load_collection, recursive_load,
         recursive_load_from_list, recursive_load_from_dict_values,
 )
-from .params import param
+from .params import param, getitem
 from .getters import Getter, Key, Method, Func, Value
 from .pick import ValuesIter, first
 from .configs.configs import Config, DocoptConfig, TomlConfig, configs
 from .configs.layers import Layer
-from .errors import UsageError, CircularDependency, NotYetAvailable, NoValueFound
+from .errors import UsageError, NoValueFound
 
 # Make everything imported above appear to come from this module:
 _post_import_keys = set(globals())

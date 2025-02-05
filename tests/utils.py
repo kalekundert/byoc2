@@ -16,7 +16,7 @@ with_py = pff.Namespace()
 with_byoc = pff.Namespace(
         'import byoc',
         'from byoc import Key, Method, Func, Value',
-        'from byoc import UsageError, CircularDependency, NotYetAvailable, NoValueFound',
+        'from byoc import UsageError, NoValueFound',
         DictConfig=DictConfig,
 )
 

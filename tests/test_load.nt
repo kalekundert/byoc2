@@ -13,6 +13,47 @@ test_load:
     expected:
       x: 1
   -
+    id: key-cast
+    app:
+      > class MyApp:
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield DictConfig({'x': '1'})
+      >
+      >   x = byoc.param(Key(DictConfig, 'x', cast=int))
+
+    expected:
+      x: 1
+  -
+    id: key-order
+    app:
+      > class MyConfigA(DictConfig):
+      >   pass
+      >
+      > class MyConfigB(DictConfig):
+      >   pass
+      >
+      > class MyApp:
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield MyConfigA({'x': 1})
+      >       yield MyConfigB({'x': 2})
+      >
+      >   x1 = byoc.param(
+      >       Key(MyConfigA, 'x'),
+      >       Key(MyConfigB, 'x'),
+      >   )
+      >   x2 = byoc.param(
+      >       Key(MyConfigB, 'x'),
+      >       Key(MyConfigA, 'x'),
+      >   )
+
+    expected:
+      x1: 1
+      x2: 2
+  -
     id: key-match-config-class
     app:
       > class MyConfigA(DictConfig):
@@ -104,6 +145,31 @@ test_load:
       >   )
     expected:
       x: 2
+  -
+    id: detach
+    app:
+      > class MyApp:
+      >
+      >   def __init__(self, x):
+      >     self.x = x
+      >
+      >   def calc_y(self):
+      >     return 6 / self.x
+      >
+      >   y = byoc.param(Method(calc_y))
+      >
+      > try:
+      >   decoy = MyApp(0)
+      >   byoc.load(decoy)
+      > except ZeroDivisionError:
+      >   pass
+      >
+      > # The fact that a previous instance of `MyApp` failed to load should 
+      > # not affect the loading of a new instance.
+      > app = MyApp(2)
+    expected:
+      x: 2
+      y: 3
   -
     id: pick-first
     app:
@@ -197,7 +263,11 @@ test_load:
       >   x = byoc.param(Method(calc_x))
       >   y = byoc.param(Method(calc_y))
     error:
-      type: CircularDependency
+      type: UsageError
+      message:
+        - encountered circular dependency
+        - <param MyApp.x>
+        - <param MyApp.y>
   -
     id: dependencies-circular-3
     app:
@@ -216,7 +286,12 @@ test_load:
       >   y = byoc.param(Method(calc_y))
       >   z = byoc.param(Method(calc_z))
     error:
-      type: CircularDependency
+      type: UsageError
+      message:
+        - encountered circular dependency
+        - <param MyApp.x>
+        - <param MyApp.y>
+        - <param MyApp.z>
   -
     id: recursive
     app:
@@ -245,6 +320,24 @@ test_load:
       children.0.x: 1
       children.1.x: 1
   -
+    id: recursive-same-child-two-attrs
+    app:
+      > class MyChild:
+      >   x = byoc.param(Value(1))
+      >
+      > class MyApp:
+      >   child_1 = byoc.param(
+      >       Value(MyChild()),
+      >       on_load=byoc.recursive_load,
+      >   )
+      >   child_2 = byoc.param(
+      >       Value(MyChild()),
+      >       on_load=byoc.recursive_load,
+      >   )
+    expected:
+      child_1.x: 1
+      child_2.x: 1
+  -
     id: recursive-dict
     app:
       > class MyChild:
@@ -259,7 +352,7 @@ test_load:
       children.x.z: 1
       children.y.z: 1
   -
-    id: recursive-configs-parent-only
+    id: recursive-configs
     app:
       > class MyChild:
       >   y = byoc.param(Key(DictConfig, 'y'))
@@ -278,56 +371,6 @@ test_load:
     expected:
       x: 1
       child.y: 2
-  -
-    id: recursive-configs-child-only
-    app:
-      > class MyChild:
-      >
-      >   @byoc.configs
-      >   def iter_configs(self):
-      >       yield DictConfig({'y': 2})
-      >
-      >   y = byoc.param(Key(DictConfig, 'y'))
-      >
-      > class MyApp:
-      >
-      >   @byoc.configs
-      >   def iter_configs(self):
-      >       yield DictConfig({'x': 1})
-      >
-      >   x = byoc.param(Key(DictConfig, 'x'))
-      >   child = byoc.param(
-      >       Value(MyChild()),
-      >       on_load=byoc.recursive_load,
-      >   )
-    expected:
-      x: 1
-      child.y: 2
-  -
-    id: recursive-configs-child-override
-    app:
-      > class MyChild:
-      >
-      >   @byoc.configs
-      >   def iter_configs(self):
-      >       yield DictConfig({'y': 3})
-      >
-      >   y = byoc.param(Key(DictConfig, 'y'))
-      >
-      > class MyApp:
-      >
-      >   @byoc.configs
-      >   def iter_configs(self):
-      >       yield DictConfig({'x': 1, 'y': 2})
-      >
-      >   x = byoc.param(Key(DictConfig, 'x'))
-      >   child = byoc.param(
-      >       Value(MyChild()),
-      >       on_load=byoc.recursive_load,
-      >   )
-    expected:
-      x: 1
-      child.y: 3
   -
     id: recursive-dependencies-in-order
     app:
@@ -423,7 +466,92 @@ test_load:
       >       on_load=byoc.recursive_load,
       >   )
     error:
-      type: CircularDependency
+      type: UsageError
+  -
+    id: temp-value
+    app:
+      > class MyConfig(byoc.Config):
+      >
+      >   def __init__(self, app):
+      >       super().__init__()
+      >       self.app = app
+      >
+      >   def iter_layers(self):
+      >       yield byoc.Layer({'x': self.app.x + 1})
+      >       
+      > class MyApp:
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield MyConfig(self)
+      >
+      >   x = byoc.param(
+      >       Key(MyConfig, 'x'),
+      >       Value(1),
+      >   )
+
+    expected:
+      x: 2
+  -
+    id: temp-value-dependency
+    app:
+      > class MyConfig(byoc.Config):
+      >
+      >   def __init__(self, app):
+      >       super().__init__()
+      >       self.app = app
+      >
+      >   def iter_layers(self):
+      >       yield byoc.Layer({'x': self.app.x + 1})
+      >       
+      > class MyApp:
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield MyConfig(self)
+      >
+      >   def calc_x(self):
+      >       return self.y + 1
+      >
+      >   x = byoc.param(
+      >       Key(MyConfig, 'x'),
+      >       Method(calc_x),
+      >   )
+      >   y = byoc.param(Value(1))
+
+    expected:
+      x: 3
+  -
+    id: temp-value-recursive
+    app:
+      > class MyConfig(byoc.Config):
+      >
+      >   def __init__(self, app):
+      >       super().__init__()
+      >       self.app = app
+      >
+      >   def iter_layers(self):
+      >       yield byoc.Layer({'x': self.app.child.x + 1})
+      >
+      > class MyChild:
+      >   x = byoc.param(
+      >       Key(MyConfig, 'x'),
+      >       Value(1),
+      >   )
+      >       
+      > class MyApp:
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield MyConfig(self)
+      >
+      >   child = byoc.param(
+      >       Value(MyChild()),
+      >       on_load=byoc.recursive_load,
+      >   )
+
+    expected:
+      child.x: 2
 
 test_load_collection:
   -
@@ -504,7 +632,14 @@ test_load_collection:
     expected:
       x: 1
       y: 2
-
+  -
+    id: getitem
+    app: 
+      x: 1
+      y: byoc.param(Method(lambda self: byoc.getitem(self, 'x') + 1))
+    expected:
+      x: 1
+      y: 2
   -
     id: err-not-list-or-dict
     app: byoc.param(Value(1))

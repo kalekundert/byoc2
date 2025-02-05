@@ -1,5 +1,6 @@
 from typing import Callable, Any
 from .configs.configs import Config
+from .utils import identity
 
 class Getter:
 
@@ -8,21 +9,26 @@ class Getter:
 
 class Key(Getter):
 
-    def __init__(self, config_cls, key):
+    def __init__(self, config_cls, key, *, cast=identity):
         self.config_cls = config_cls
         self.key = key
+        self.cast = cast
 
     def iter_values(self, app, configs):
         for config in configs:
+            if not config.is_loaded:
+                continue
+
             if not isinstance(config, self.config_cls):
                 continue
 
             for layer in config.iter_cached_layers():
                 try:
-                    yield layer.payload[self.key]
+                    value = layer.payload[self.key]
                 except KeyError:
-                    pass
+                    continue
 
+                yield self.cast(value)
 
 class Method(Getter):
 

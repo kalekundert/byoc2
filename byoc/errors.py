@@ -1,14 +1,7 @@
-class UsageError(Exception):
+from tidyexc import Error
+
+class UsageError(Error):
     pass
-
-class CircularDependency(UsageError):
-    pass
-
-
-class NotYetAvailable(AttributeError):
-
-    def __init__(self, param):
-        self.param = param
 
 class NoValueFound(AttributeError):
     pass

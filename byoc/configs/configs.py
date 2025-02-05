@@ -6,15 +6,20 @@ from contextlib import redirect_stdout
 
 class Config:
 
+    def __init__(self):
+        self._cached_layers = None
+
+    def load(self):
+        self._cached_layers = list(self.iter_layers())
+
+    @property
+    def is_loaded(self):
+        return self._cached_layers is not None
+
     def iter_layers(self):
         raise NotImplementedError
 
     def iter_cached_layers(self):
-        # Don't require subclasses to call `super().__init__()`.  Since this 
-        # class is meant to be subclasses by end-users, I think this makes it 
-        # more user-friendly.
-        if not hasattr(self, '_cached_layers'):
-            self._cached_layers = list(self.iter_layers())
         yield from self._cached_layers
 
 class EnvironmentConfig(Config):
@@ -22,7 +27,7 @@ class EnvironmentConfig(Config):
     def iter_layers(self):
         yield Layer(os.environ)
 
-class DocoptConfig:
+class DocoptConfig(Config):
 
     def __init__(
             self,
@@ -36,9 +41,12 @@ class DocoptConfig:
             options_first=False,
             schema=None,
     ):
-        self.usage = usage or getattr(app, '__doc__')
-        self.usage_io = usage_io or sys.stdout
-        self.version = version or getattr(app, '__version__')
+        super().__init__()
+
+        self.app = app
+        self.usage = usage
+        self.usage_io = usage_io
+        self.version = version
         self.include_help = include_help
         self.include_version = include_version
         self.options_first = options_first
@@ -47,15 +55,13 @@ class DocoptConfig:
     def iter_layers(self):
         import docopt
 
-        with redirect_stdout(self.usage_io):
+        with redirect_stdout(self.usage_io or sys.stdout):
             args = docopt.docopt(
                     self.usage,
                     help=self.include_help,
                     version=self.version,
                     options_first=self.options_first,
             )
-
-        args = docopt.docopt(self.doc)
 
         # If not specified:
         # - options with arguments will be None.
@@ -66,9 +72,10 @@ class DocoptConfig:
 
         yield Layer(args)
 
-class TomlConfig:
+class TomlConfig(Config):
 
     def __init__(self, get_path):
+        super().__init__()
         self.get_path = get_path
 
     def iter_layers(self):

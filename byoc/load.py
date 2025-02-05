@@ -1,10 +1,7 @@
-import networkx as nx
-
-from .params import NotYetAvailable, param
-from .errors import UsageError, CircularDependency
-from heapq import heappush, heappop
+from .params import param
+from .errors import UsageError
 from itertools import chain
-from functools import partial, total_ordering
+from functools import partial
 from collections.abc import MutableSequence, MutableMapping, Iterable
 from operator import setitem
 
@@ -13,64 +10,81 @@ from .configs import Config
 
 class Loader:
 
-    def __init__(self):
-        self.queue = []
-        self.dependencies = nx.DiGraph()
+    def __init__(self, attrs, configs):
+        self._attributes = []
+        self._attribute_values = {}
+        self._attribute_locks = {}
+        self._configs = configs
+        self._is_loading = False
+
+        self.add_attributes(attrs)
 
     def load(self):
-        while self.queue:
-            task = heappop(self.queue)
+        self._is_loading = True
 
-            app = task.app
-            param = task.param
-            configs = task.configs
-            setter = task.setter
+        try:
+            for param in _iter_unique_params(self._attributes):
+                param.begin_load(self)
 
-            try:
-                value = param.get_value(app, configs)
+            # Allow each config to load itself in a context without any 
+            # upstream configs.  This allows command-line argument parsers to 
+            # display config-aware default values.
 
-            except NotYetAvailable as err:
-                if _is_circular_dependency(self.dependencies, err.param, param):
-                    raise CircularDependency(param, err.param)
+            for config in self._configs:
+                self._attribute_values = {}
+                config.load()
 
-                self.dependencies.add_edge(param, err.param)
-                task.num_dependencies += 1
-                heappush(self.queue, task)
-            
-            else:
+            self._attribute_values = {}
+
+            for attr in self._attributes:
+                app = attr.app
+                param = attr.param
+                setter = attr.setter
+
+                value = self.get_attribute_value(app, param)
                 setter(value)
-                if param.on_load:
-                    param.on_load(self, task, value)
 
-    def push(self, tasks):
-        for i, task in enumerate(tasks):
-            task.push_order = i
-            heappush(self.queue, task)
+        finally:
+            for param in _iter_unique_params(self._attributes):
+                param.end_load()
 
-@total_ordering
-class Task:
+    def add_attributes(self, attrs):
+        if self._is_loading:
+            for param in _iter_unique_params(attrs, exclude=self._attributes):
+                param.begin_load(self)
 
-    def __init__(self, app, param, setter, configs):
+        self._attributes += attrs
+
+    def get_attribute_value(self, app, param):
+        k = id(app), id(param)
+
+        if k in self._attribute_locks:
+            err = UsageError("encountered circular dependency while loading the following parameters:")
+            err.info += [
+                    repr(param)
+                    for app, param in chain(
+                        self._attribute_locks.values(),
+                        [(app, param)],
+                    )
+            ]
+            raise err
+
+        if k not in self._attribute_values:
+            self._attribute_locks[k] = (app, param)
+            self._attribute_values[k] = param.load_value(app, self._configs)
+            del self._attribute_locks[k]
+
+        return self._attribute_values[k]
+
+class PendingAttribute:
+
+    def __init__(self, app, param, setter):
         self.app = app
         self.param = param
         self.setter = setter
-        self.configs = configs
-        self.num_dependencies = 0
-        self.push_order = None
 
     def __repr__(self):
-        return f'<Task {self.param}>'
-
-    def __eq__(self, other):
-        return self._sort_key == other._sort_key
-
-    def __lt__(self, other):
-        return self._sort_key < other._sort_key
-
-    @property
-    def _sort_key(self):
-        return self.num_dependencies, -self.param.priority, self.push_order
-
+        return f'<PendingAttribute app={self.app} param={self.param}>'
 
 def load(
         app: Any,
@@ -79,13 +93,11 @@ def load(
 ):
     params = _find_params_in_obj(app)
     configs = _find_configs_in_obj(app) if configs is None else configs
-
-    loader = Loader()
-    tasks = [
-            Task(app, param, setter, configs)
+    attrs = [
+            PendingAttribute(app, param, setter)
             for param, setter in params
     ]
-    loader.push(tasks)
+    loader = Loader(attrs, configs)
     loader.load()
 
 def load_collection(
@@ -94,22 +106,20 @@ def load_collection(
 ):
     params = _find_params_in_collection(app)
 
-    loader = Loader()
-    tasks = [
-            Task(app, param, setter, configs)
+    attrs = [
+            PendingAttribute(app, param, setter)
             for param, setter in params
     ]
-    loader.push(tasks)
+    loader = Loader(attrs, configs)
     loader.load()
 
 def recursive_load(loader, task, app):
     params = _find_params_in_obj(app)
-    configs = _find_configs_in_obj(app) + task.configs
-    tasks = [
-            Task(app, param, setter, configs)
+    attrs = [
+            PendingAttribute(app, param, setter)
             for param, setter in params
     ]
-    loader.push(tasks)
+    loader.add_attributes(attrs)
 
 def recursive_load_from_list(loader, task, apps):
     for app in apps:
@@ -164,13 +174,10 @@ def _find_configs_in_obj(app):
 def _find_meta_in_obj(app):
     pass
 
-def _is_circular_dependency(G, a, b):
-    if not G.has_node(a):
-        return False
-    if not G.has_node(b):
-        return False
-    
-    return nx.has_path(G, b, a)
+def _iter_unique_params(attrs, exclude=None):
+    new_params = set(attr.param for attr in attrs)
+    old_params = set(attr.param for attr in exclude) if exclude else set()
+    yield from new_params - old_params
 
 def _find_cls_attrs(obj, predicate=lambda k, v: True):
     cls_attrs = {}
