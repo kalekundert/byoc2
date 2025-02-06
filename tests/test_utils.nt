@@ -1,0 +1,43 @@
+test_lookup:
+  -
+    x: {'a': 1}
+    key: 'a'
+    expected: 1
+  -
+    x: {'a': 1}
+    key: []
+    expected: {'a': 1}
+  -
+    x: {'a': 1}
+    key: 'a',
+    expected: 1
+  -
+    x: {'a': {'b': 1}}
+    key: 'a', 'b'
+    expected: 1
+  -
+    x: {'a': ['b', 'c']}
+    key: 'a', 1
+    expected: 'c'
+  -
+    x: {'a': 1, 'b': 2}
+    key: lambda x: x['a']
+    expected: 1
+  -
+    x: {'a': 1, 'b': 2}
+    key: lambda x: (x['a'], x['b'])
+    expected: 1, 2
+  -
+    x: {1: 2}
+    key: 1
+    expected: 2
+  -
+    x: {0: 1}
+    key: 0
+    expected: 1
+  -
+    x: {None: 1}
+    key: None
+    expected: 1
+
+

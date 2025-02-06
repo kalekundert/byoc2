@@ -1,5 +1,5 @@
 from typing import Callable, Any
-from .configs.configs import Config
+from .configs import Config
 from .utils import identity
 
 class Getter:
@@ -16,19 +16,12 @@ class Key(Getter):
 
     def iter_values(self, app, configs):
         for config in configs:
-            if not config.is_loaded:
-                continue
-
             if not isinstance(config, self.config_cls):
                 continue
 
-            for layer in config.iter_cached_layers():
-                try:
-                    value = layer.payload[self.key]
-                except KeyError:
-                    continue
-
-                yield self.cast(value)
+            for finder in config.iter_finders():
+                for value in finder.iter_values(app, self.key):
+                    yield self.cast(value)
 
 class Method(Getter):
 

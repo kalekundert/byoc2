@@ -1,0 +1,366 @@
+test_cli_config:
+  -
+    id: argparse
+    app:
+      > class MyApp:
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield ArgparseConfig(self.get_argparse)
+      >
+      >     usage = byoc.config_attr(CliConfig)
+      >     brief = byoc.config_attr(CliConfig)
+      >
+      >     x = byoc.param(Key(CliConfig, 'x'))
+      >     y = byoc.param(Key(CliConfig, 'y'))
+      >
+      >     def get_argparse(self):
+      >         import argparse
+      >         p = argparse.ArgumentParser(description="Do something")
+      >         p.add_argument('x')
+      >         p.add_argument('-y', action='store_true')
+      >         return p
+    usage:
+      > usage: app [-h] [-y] x
+      >
+      > Do something
+      >
+      > positional arguments:
+      >   x
+      >
+      > optional arguments:
+      >   -h, --help  show this help message and exit
+      >   -y
+      >
+    brief:
+      > Do something
+    invocations:
+      -
+        argv:
+          > ./app x
+        expected:
+          x: 'x'
+          y: False
+      -
+        argv:
+          > ./app x -y
+        expected:
+          x: 'x'
+          y: True
+  -
+    id: argparse-init
+    app:
+      > class MyApp:
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield ArgparseConfig(
+      >             parser=self.get_argparse,
+      >             schema=lambda d: {**d, 'x': d['x'] + '*'},
+      >         )
+
+      >     usage = byoc.config_attr(CliConfig)
+      >     brief = byoc.config_attr(CliConfig)
+      >
+      >     x = byoc.param(Key(CliConfig, 'x'))
+      >     y = byoc.param(Key(CliConfig, 'y'))
+      >
+      >     def get_argparse(self):
+      >         import argparse
+      >         p = argparse.ArgumentParser(description="Do something")
+      >         p.add_argument('x')
+      >         p.add_argument('-y', action='store_true')
+      >         return p
+    usage:
+      > usage: app [-h] [-y] x
+      >
+      > Do something
+      >
+      > positional arguments:
+      >   x
+      >
+      > optional arguments:
+      >   -h, --help  show this help message and exit
+      >   -y
+      >
+    brief:
+      > Do something
+    invocations:
+      -
+        argv:
+          > ./app x
+        expected:
+          x: 'x*'
+          y: False
+      -
+        argv:
+          > ./app x -y
+        expected:
+          x: 'x*'
+          y: True
+  -
+    id: docopt
+    app:
+      > class MyApp:
+      >     """\
+      >     Do something.
+      >
+      >     Usage:
+      >         app <x> [<y>...] [-z]
+      >     """
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield DocoptConfig(self.__doc__)
+      >
+      >     usage = byoc.config_attr(CliConfig)
+      >     brief = byoc.config_attr(CliConfig)
+      >
+      >     x = byoc.param(Key(CliConfig, '<x>'))
+      >     y = byoc.param(Key(CliConfig, '<y>'), Value(None))
+      >     z = byoc.param(Key(CliConfig, '-z'), Value(None))
+    usage:
+      > Do something.
+      >
+      > Usage:
+      >     app <x> [<y>...] [-z]
+      >
+    brief:
+      > Do something.
+    invocations:
+      -
+        argv:
+          > ./app x
+        expected:
+          x: 'x'
+          y: None
+          z: None
+      -
+        argv:
+          > ./app x -z
+        expected:
+          x: 'x'
+          y: None
+          z: True
+      -
+        argv:
+          > ./app x y -z
+        expected:
+          x: 'x'
+          y: ['y']
+          z: True
+  -
+    id: docopt-init
+    app:
+      > class MyApp:
+      >     """\
+      >     Usage:
+      >         app <x> [<y>...] [-z]
+      >     """
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield DocoptConfig(
+      >             usage=self.__doc__,
+      >             version='1.0',
+      >             options_first=True,
+      >             schema=lambda d: {**d, '<x>': d['<x>'] + '*'},
+      >         )
+      >
+      >     usage = byoc.config_attr(CliConfig)
+      >     brief = byoc.config_attr(CliConfig)
+      >
+      >     x = byoc.param(Key(CliConfig, '<x>'))
+      >     y = byoc.param(Key(CliConfig, '<y>'), Value(None))
+      >     z = byoc.param(Key(CliConfig, '-z'), Value(None))
+    usage:
+      > Usage:
+      >     app <x> [<y>...] [-z]
+      >
+    brief:
+    invocations:
+      -
+        argv:
+          > ./app x
+        expected:
+          x: 'x*'
+          y: None
+          z: None
+      -
+        argv:
+          > ./app x -z
+        expected:
+          x: 'x*'
+          y: ['-z']
+          z: None
+      -
+        argv:
+          > ./app -z x
+        expected:
+          x: 'x*'
+          y: None
+          z: True
+  -
+    id: docopt-mako
+    app:
+      > class MyApp:
+      >     """\
+      >     Do something.
+      >
+      >     Usage:
+      >         app <x> [-y Y]
+      >
+      >     Options:
+      >         -y Y  [default: ${app.y.upper()}]
+      >
+      >     ${details}
+      >     """
+
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         details = dict(details='Lorem ipsum...')
+      >         usage = byoc.mako_usage(self, extra_vars=details)
+      >         yield DocoptConfig(usage)
+      >
+      >     brief = byoc.config_attr(CliConfig)
+      >     usage = byoc.config_attr(CliConfig)
+      >
+      >     x = byoc.param(Key(CliConfig, '<x>'))
+      >     y = byoc.param(Key(CliConfig, '-y'), Value('a'))
+    usage:
+      > Do something.
+      >
+      > Usage:
+      >     app <x> [-y Y]
+      >
+      > Options:
+      >     -y Y  [default: A]
+      >
+      > Lorem ipsum...
+      >
+    brief: Do something.
+    invocations:
+      -
+        argv:
+          > ./app x
+        expected:
+          x: 'x'
+          y: 'A'
+      -
+        argv:
+          > ./app x -y b
+        expected:
+          x: 'x'
+          y: 'b'
+
+test_file_config:
+  -
+    id: json
+    app:
+      > class MyApp:
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield JsonConfig('x.json')
+      >
+      >     x = byoc.param(Key(JsonConfig, 'x'))
+    tmp_files:
+      x.json:
+        > {"x": 1}
+    expected:
+      x: 1
+  -
+    id: nt
+    app:
+      > class MyApp:
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield NtConfig('x.nt')
+      >
+      >     x = byoc.param(Key(NtConfig, 'x'))
+      >     y = byoc.param(Key(NtConfig, 'y', cast=int))
+    tmp_files:
+      x.nt:
+        > x: 1
+        > y: 1
+    expected:
+      x: '1'
+      y: 1
+  -
+    id: toml
+    app:
+      > class MyApp:
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield TomlConfig('x.toml')
+      >
+      >     x = byoc.param(Key(TomlConfig, 'x'))
+    tmp_files:
+      x.toml:
+        > x = 1
+    expected:
+      x: 1
+  -
+    id: yaml
+    app:
+      > class MyApp:
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield YamlConfig('x.yml')
+      >
+      >     x = byoc.param(Key(YamlConfig, 'x'))
+    tmp_files:
+      x.yml:
+        > x: 1
+    expected:
+      x: 1
+  -
+    id: yaml-path-dependency
+    app:
+      > class MyApp:
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield YamlConfig(lambda: self.path)
+      >
+      >     x = byoc.param(Key(YamlConfig, 'x'))
+      >     path = byoc.param(Value('x.yml'))
+    tmp_files:
+      x.yml:
+        > x: 1
+    expected:
+      x: 1
+  -
+    id: yaml-schema
+    app:
+      > class MyApp:
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield YamlConfig('x.yml', schema=star_keys)
+      >
+      >     x = byoc.param(Key(YamlConfig, 'x*'))
+    tmp_files:
+      x.yml:
+        > x: 1
+    expected:
+      x: 1
+  -
+    id: yaml-root-key
+    app:
+      > class MyApp:
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield YamlConfig('x.yml', root_key='x')
+      >
+      >     y = byoc.param(Key(YamlConfig, 'y'))
+    tmp_files:
+      x.yml:
+        > x:
+        >   y: 1
+    expected:
+      y: 1

@@ -14,15 +14,22 @@ classifiers = [
   'Programming Language :: Python :: 3',
 ]
 dependencies = [
+  'more_itertools',
+  'pipeline_func',
   'tidyexc',
-  'docopt',
 ]
 
 [project.optional-dependencies]
+all = [
+  'docopt',
+  'mako',
+]
 test = [
   'pytest',
+  'pytest_tmp_files',
   'parametrize_from_file',
   'glom',
+  'voluptuous',
 ]
 doc = [
   'sphinx',

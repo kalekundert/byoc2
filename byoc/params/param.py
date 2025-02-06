@@ -1,6 +1,6 @@
-from .pick import ValuesIter, first
-from .utils import identity
-from .errors import UsageError
+from ..pick import ValuesIter, first
+from ..utils import identity
+from ..errors import UsageError
 
 class param:
     
@@ -28,6 +28,11 @@ class param:
             return f'<param {self.app_name}.{self.name}>'
 
     def __get__(self, app, cls=None):
+        if self._loader is None:
+            err = UsageError("parameter has no value")
+            err.blame += "Did you forget to call `byoc.load()`?"
+            raise err
+
         return self.get_value(app)
 
     def __set_name__(self, owner, name):

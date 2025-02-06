@@ -1,12 +1,10 @@
 import byoc
 import parametrize_from_file as pff
 
-from byoc import Key
+from byoc import Key, Value
+from pytest import raises
 from glom import glom
 from utils import *
-
-# I want to test that priority is working correctly.  However, first I need a 
-# way to record a log of the loading process.
 
 @pff.parametrize(
         schema=[
@@ -39,15 +37,18 @@ def test_load_collection(app, configs, expected, error):
         for param, value in expected.items():
             assert glom(app, param) == value
 
-def test_load_config_cache():
-    num_iter_layers_calls = 0
+def test_only_load_each_config_once():
+    num_calls = {'load': 0, 'iter_finders': 0}
 
     class MyConfig(DictConfig):
 
-        def iter_layers(self):
-            nonlocal num_iter_layers_calls
-            num_iter_layers_calls += 1
-            yield from super().iter_layers()
+        def load(self):
+            num_calls['load'] += 1
+            super().load()
+
+        def iter_finders(self):
+            num_calls['iter_finders'] += 1
+            yield from super().iter_finders()
 
     class MyApp:
 
@@ -63,4 +64,16 @@ def test_load_config_cache():
 
     assert app.x == 1
     assert app.y == 2
-    assert num_iter_layers_calls == 1
+    assert num_calls['load'] == 1
+    assert num_calls['iter_finders'] > 1
+
+def test_err_forget_to_load():
+
+    class MyApp:
+        x = byoc.param(Value(1))
+
+    app = MyApp()
+
+    with raises(byoc.UsageError, match='parameter has no value'):
+        app.x
+

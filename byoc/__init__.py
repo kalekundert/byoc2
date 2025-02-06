@@ -8,11 +8,16 @@ from .load import (
         Loader, PendingAttribute, load, load_collection, recursive_load,
         recursive_load_from_list, recursive_load_from_dict_values,
 )
-from .params import param, getitem
+from .params.param import param, getitem
+from .params.config_attr import config_attr, ConfigAttr
 from .getters import Getter, Key, Method, Func, Value
 from .pick import ValuesIter, first
-from .configs.configs import Config, DocoptConfig, TomlConfig, configs
-from .configs.layers import Layer
+from .configs.config import Config, configs
+from .configs.environment import EnvironmentConfig
+from .configs.cli import CliConfig, ArgparseConfig, DocoptConfig, mako_usage
+from .configs.files import FileConfig, JsonConfig, NtConfig, TomlConfig, YamlConfig
+from .configs.finders import Finder, DictFinder
+from .utils import identity, lookup
 from .errors import UsageError, NoValueFound
 
 # Make everything imported above appear to come from this module:

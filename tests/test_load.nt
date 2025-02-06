@@ -136,6 +136,31 @@ test_load:
     expected:
       x: 1
   -
+    id: config-attr
+    app:
+      > class MyConfig(byoc.Config):
+      >   
+      >   def __init__(self):
+      >       self.x = 1
+      >
+      >   def iter_finders(self):
+      >       yield byoc.DictFinder({'y': 2})
+      >
+      > class MyApp:
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield MyConfig()
+      >
+      >   x = byoc.config_attr(MyConfig)
+      >   x_named = byoc.config_attr(MyConfig, 'x')
+      >   y = byoc.param(Key(MyConfig, 'y'))
+
+    expected:
+      x: 1
+      x_named: 1
+      y: 2
+  -
     id: cast
     app:
       > class MyApp:
@@ -192,15 +217,61 @@ test_load:
     expected:
       x: [1, 2]
   -
+    id: hidden
+    app:
+      > class MyApp:
+      >   x = byoc.param(Value(1))
+      >
+      > app = MyApp()
+      > app.x = 2
+    expected:
+      x: 2
+  -
     id: inheritance
     app:
       > class MyBase:
       >   x = byoc.param(Value(1))
-      > class MyApp(MyBase):
       >   y = byoc.param(Value(2))
+      > class MyApp(MyBase):
+      >   y = byoc.param(Value(3))
+      >   z = byoc.param(Value(4))
     expected:
       x: 1
-      y: 2
+      y: 3
+      z: 4
+  -
+    id: inheritance-multi
+    app:
+      > class MyBaseA:
+      >   a = byoc.param(Value(1))
+      >   ab = byoc.param(Value(1))
+      >   ac = byoc.param(Value(1))
+      >   abc = byoc.param(Value(1))
+      >
+      > class MyBaseB:
+      >   b = byoc.param(Value(2))
+      >   ab = byoc.param(Value(2))
+      >   bc = byoc.param(Value(2))
+      >   abc = byoc.param(Value(2))
+      >
+      > class MyAppC(MyBaseA, MyBaseB):
+      >   c = byoc.param(Value(3))
+      >   ac = byoc.param(Value(3))
+      >   bc = byoc.param(Value(3))
+      >   abc = byoc.param(Value(3))
+      >
+      > app = MyAppC()
+      
+    expected:
+      a: 1
+      b: 2
+      c: 3
+
+      ab: 1
+      ac: 3
+      bc: 3
+
+      abc: 3
   -
     id: inheritance-hidden
     app:
@@ -472,18 +543,20 @@ test_load:
     app:
       > class MyConfig(byoc.Config):
       >
-      >   def __init__(self, app):
-      >       super().__init__()
-      >       self.app = app
+      >   def __init__(self, get_x):
+      >       self.get_x = get_x
       >
-      >   def iter_layers(self):
-      >       yield byoc.Layer({'x': self.app.x + 1})
+      >   def load(self):
+      >       self.finder = byoc.DictFinder({'x': self.get_x()})
+      >
+      >   def iter_finders(self):
+      >       yield self.finder
       >       
       > class MyApp:
       >
       >   @byoc.configs
       >   def iter_configs(self):
-      >       yield MyConfig(self)
+      >       yield MyConfig(lambda: self.x + 1)
       >
       >   x = byoc.param(
       >       Key(MyConfig, 'x'),
@@ -497,25 +570,24 @@ test_load:
     app:
       > class MyConfig(byoc.Config):
       >
-      >   def __init__(self, app):
-      >       super().__init__()
-      >       self.app = app
+      >   def __init__(self, get_x):
+      >       self.get_x = get_x
       >
-      >   def iter_layers(self):
-      >       yield byoc.Layer({'x': self.app.x + 1})
+      >   def load(self):
+      >       self.finder = byoc.DictFinder({'x': self.get_x()})
+      >
+      >   def iter_finders(self):
+      >       yield self.finder
       >       
       > class MyApp:
       >
       >   @byoc.configs
       >   def iter_configs(self):
-      >       yield MyConfig(self)
-      >
-      >   def calc_x(self):
-      >       return self.y + 1
+      >       yield MyConfig(lambda: self.x + 1)
       >
       >   x = byoc.param(
       >       Key(MyConfig, 'x'),
-      >       Method(calc_x),
+      >       Method(lambda self: self.y + 1),
       >   )
       >   y = byoc.param(Value(1))
 
@@ -526,12 +598,14 @@ test_load:
     app:
       > class MyConfig(byoc.Config):
       >
-      >   def __init__(self, app):
-      >       super().__init__()
-      >       self.app = app
+      >   def __init__(self, get_x):
+      >       self.get_x = get_x
       >
-      >   def iter_layers(self):
-      >       yield byoc.Layer({'x': self.app.child.x + 1})
+      >   def load(self):
+      >       self.finder = byoc.DictFinder({'x': self.get_x()})
+      >
+      >   def iter_finders(self):
+      >       yield self.finder
       >
       > class MyChild:
       >   x = byoc.param(
@@ -543,7 +617,7 @@ test_load:
       >
       >   @byoc.configs
       >   def iter_configs(self):
-      >       yield MyConfig(self)
+      >       yield MyConfig(lambda: self.child.x + 1)
       >
       >   child = byoc.param(
       >       Value(MyChild()),

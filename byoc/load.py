@@ -1,4 +1,4 @@
-from .params import param
+from .params.param import param
 from .errors import UsageError
 from itertools import chain
 from functools import partial
@@ -15,6 +15,7 @@ class Loader:
         self._attribute_values = {}
         self._attribute_locks = {}
         self._configs = configs
+        self._loaded_configs = []
         self._is_loading = False
 
         self.add_attributes(attrs)
@@ -27,14 +28,21 @@ class Loader:
                 param.begin_load(self)
 
             # Allow each config to load itself in a context without any 
-            # upstream configs.  This allows command-line argument parsers to 
-            # display config-aware default values.
+            # upstream configs.  One important use-case for this feature is to 
+            # allow command-line argument parsers to display usage text with 
+            # config-aware default values.
+
+            self._loaded_configs = []
 
             for config in self._configs:
                 self._attribute_values = {}
+                assert not self._attribute_locks
+
                 config.load()
+                self._loaded_configs.append(config)
 
             self._attribute_values = {}
+            assert not self._attribute_locks
 
             for attr in self._attributes:
                 app = attr.app
@@ -71,7 +79,8 @@ class Loader:
 
         if k not in self._attribute_values:
             self._attribute_locks[k] = (app, param)
-            self._attribute_values[k] = param.load_value(app, self._configs)
+            self._attribute_values[k] = \
+                    param.load_value(app, self._loaded_configs)
             del self._attribute_locks[k]
 
         return self._attribute_values[k]
