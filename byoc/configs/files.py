@@ -1,6 +1,7 @@
 from .config import Config
 from .finders import DictFinder
 from .utils import maybe_call
+from more_itertools import always_iterable
 
 class FileConfig(Config):
     
@@ -17,39 +18,52 @@ class FileConfig(Config):
 
     def load(self):
         self.path = maybe_call(self.path)
-        self.finder = DictFinder(
-                self._parse_values(),
-                schema=self.schema,
-                root_key=self.root_key,
-        )
+        self.finders = []
+
+        for path in always_iterable(self.path):
+            try:
+                values = self._parse_file(path)
+            except FileNotFoundError:
+                continue
+
+            finder = DictFinder(
+                    values,
+                    schema=self.schema,
+                    root_key=self.root_key,
+            )
+            self.finders.append(finder)
 
     def iter_finders(self):
-        yield self.finder
+        yield from self.finders
 
 class JsonConfig(FileConfig):
 
-    def _parse_values(self):
+    @staticmethod
+    def _parse_file(path):
         import json
-        with open(self.path) as f:
+        with open(path) as f:
             return json.load(f)
 
 class NtConfig(FileConfig):
 
-    def _parse_values(self):
+    @staticmethod
+    def _parse_file(path):
         import nestedtext as nt
-        return nt.load(self.path)
+        return nt.load(path)
 
 class TomlConfig(FileConfig):
 
-    def _parse_values(self):
+    @staticmethod
+    def _parse_file(path):
         import tomllib
-        with open(self.path, 'rb') as f:
+        with open(path, 'rb') as f:
             return tomllib.load(f)
 
 class YamlConfig(FileConfig):
 
-    def _parse_values(self):
+    @staticmethod
+    def _parse_file(path):
         import yaml
-        with open(self.path) as f:
+        with open(path) as f:
             return yaml.safe_load(f)
 

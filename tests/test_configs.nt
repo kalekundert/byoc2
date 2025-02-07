@@ -318,6 +318,23 @@ test_file_config:
     expected:
       x: 1
   -
+    id: yaml-multiple-paths
+    app:
+      > class MyApp:
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield YamlConfig(['x1.yml', 'x2.yml'])
+      >
+      >     x = byoc.param(Key(YamlConfig, 'x'), pick=list)
+    tmp_files:
+      x1.yml:
+        > x: 1
+      x2.yml:
+        > x: 2
+    expected:
+      x: [1, 2]
+  -
     id: yaml-path-dependency
     app:
       > class MyApp:
@@ -331,6 +348,21 @@ test_file_config:
     tmp_files:
       x.yml:
         > x: 1
+    expected:
+      x: 1
+  -
+    id: yaml-skip-missing-path
+    app:
+      > class MyApp:
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield YamlConfig('does-not-exist.yml')
+      >
+      >     x = byoc.param(Key(YamlConfig, 'x'), Value(1))
+
+    tmp_files:
+      {}
     expected:
       x: 1
   -
