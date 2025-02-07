@@ -1,0 +1,167 @@
+test_arithmetic_eval:
+  -
+    id: literal-int
+    expr: 1
+    expected: 1
+  -
+    id: literal-int
+    expr: '1'
+    expected: 1
+  -
+    id: literal-float
+    expr: 1.5
+    expected: 1.5
+  -
+    id: literal-float
+    expr: '1.5'
+    expected: 1.5
+  -
+    id: err-literal-str
+    expr: '"a"'
+    error:
+      type: SyntaxError
+      message:
+        - unable to evaluate arithmetic expression
+        - expression: "a"
+        # In python>=3.8, this will specify: 'a' is not a number
+  -
+    id: err-literal-list
+    expr: '[]'
+    error: SyntaxError
+  -
+    id: err-literal-dict
+    expr: '{}'
+    error: SyntaxError
+  -
+    id: err-func
+    expr: 'sqrt(4)'
+    error: SyntaxError
+  -
+    id: err-none
+    expr: None
+    error:
+      type: TypeError
+      message: expected str, not: <class 'NoneType'>
+
+  -
+    id: op-add
+    expr: '3 + 2'
+    expected: 5
+  -
+    id: op-sub
+    expr: '3 - 2'
+    expected: 1
+  -
+    id: op-mul
+    expr: '3 * 2'
+    expected: 6
+  -
+    id: op-div
+    expr: '3 / 2'
+    expected: 1.5
+  -
+    id: op-floor-div
+    expr: '3 // 2'
+    expected: 1
+  -
+    id: op-mod
+    expr: '3 % 2'
+    expected: 1
+  -
+    id: op-pow
+    expr: '2**3'
+    expected: 8
+  -
+    id: op-unary-plus
+    expr: '+1'
+    expected: 1
+  -
+    id: op-unary-minus
+    expr: '-1'
+    expected: -1
+  -
+    id: err-op-rshift
+    expr: '2 >> 3'
+    error:
+      type: SyntaxError
+      message:
+        - unable to evaluate arithmetic expression
+        - expression: 2 >> 3
+        - the RShift operator is not supported
+  -
+    id: err-op-lshift
+    expr: '3 << 2'
+    error: SyntaxError
+  -
+    id: err-op-and
+    expr: '3 & 2'
+    error: SyntaxError
+  -
+    id: err-op-or
+    expr: '2 | 3'
+    error: SyntaxError
+  -
+    id: err-op-xor
+    expr: '3 ^ 2'
+    error: SyntaxError
+  -
+    id: err-op-mat-mul
+    expr: '3 @ 2'
+    error: SyntaxError
+
+  -
+    id: vars
+    expr: 'a'
+    vars:
+      a: 1
+    expected: 1
+  -
+    id: vars-expr-1
+    expr: 'a + 2'
+    vars:
+      a: 1
+    expected: 3
+  -
+    id: vars-expr-2
+    expr: 'a + b'
+    vars:
+      a: 1
+      b: 2
+    expected: 3
+  -
+    id: err-vars-undef
+    expr: 'a'
+    error:
+      type: SyntaxError
+      message: name 'a' is not defined
+  -
+    id: err-vars-not-numeric
+    expr: 1
+    vars:
+      a: 'a'
+    error:
+      type: TypeError
+      message: variables must be int or float, but a='a'
+  -
+    id: err-vars-assign
+    expr: 'a = 1'
+    vars:
+      a: 1
+    error: SyntaxError
+  -
+    id: err-vars-del
+    expr: 'del a'
+    vars:
+      a: 1
+    error: SyntaxError
+
+
+  -
+    id: expr
+    expr: '1 + 2 * 3'
+    expected: 7
+  -
+    id: expr
+    expr: '(1 + 2) * 3'
+    expected: 9
+
