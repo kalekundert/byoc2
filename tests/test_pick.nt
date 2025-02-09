@@ -1,0 +1,82 @@
+test_pick_functions:
+  -
+    id: first-empty
+    pick_func: byoc.first
+    values_iter: []
+    error: NoValueFound
+  -
+    id: first-1
+    pick_func: byoc.first
+    values_iter:
+      - 1, 2
+    expected:
+      value: 1
+      meta: 2
+  -
+    id: first-2
+    pick_func: byoc.first
+    values_iter:
+      - 1, 2
+      - 3, 4
+    expected:
+      value: 1
+      meta: 2
+  -
+    id: list-empty
+    pick_func: byoc.list
+    values_iter: []
+    expected:
+      value: []
+      meta: []
+  -
+    id: list-1
+    pick_func: byoc.list
+    values_iter:
+      - 1, 2
+    expected:
+      value: [1]
+      meta: [2]
+  -
+    id: list-2
+    pick_func: byoc.list
+    values_iter:
+      - 1, 2
+      - 3, 4
+    expected:
+      value: [1, 3]
+      meta: [2, 4]
+  -
+    id: merge-dicts-empty
+    pick_func: byoc.merge_dicts
+    values_iter: []
+    expected:
+      value: {}
+      meta: {}
+  -
+    id: merge-dicts-keep-all
+    pick_func: byoc.merge_dicts
+    values_iter:
+      - {'a': 1}, 2
+      - {'b': 3}, 4
+    expected:
+      value: {'a': 1, 'b': 3}
+      meta: {'a': 2, 'b': 4}
+  -
+    id: merge-dicts-keep-first
+    pick_func: byoc.merge_dicts
+    values_iter:
+      - {'a': 1}, 2
+      - {'a': 3}, 4
+    expected:
+      value: {'a': 1}
+      meta: {'a': 2}
+  -
+    id: merge-dicts-keep-last
+    pick_func: byoc.merge_dicts(keep_last=True)
+    values_iter:
+      - {'a': 1}, 2
+      - {'a': 3}, 4
+    expected:
+      value: {'a': 3}
+      meta: {'a': 4}
+

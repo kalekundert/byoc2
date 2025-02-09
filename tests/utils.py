@@ -12,15 +12,26 @@ class DictConfig(byoc.Config):
     def iter_finders(self):
         yield byoc.DictFinder(self.values)
 
+class MetaMixin:
+
+    def __init__(self):
+        from types import SimpleNamespace
+        self.meta = SimpleNamespace()
+
+    @byoc.meta
+    def get_meta(self):
+        return self.meta
+
 def star_keys(d):
     return {f'{k}*': v for k, v in d.items()}
 
-with_py = pff.Namespace()
-with_byoc = pff.Namespace(
+with_py = pff.Namespace('from pathlib import Path')
+with_byoc = with_py.fork(
         'import byoc',
         'from byoc import Key, Method, Func, Value',
         'from byoc import UsageError, NoValueFound',
         DictConfig,
+        MetaMixin,
         star_keys,
 )
 

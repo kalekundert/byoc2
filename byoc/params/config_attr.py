@@ -1,5 +1,7 @@
 from .param import param
 from ..getters import Getter
+from ..configs import Config
+from dataclasses import dataclass
 
 class config_attr(param):
 
@@ -26,5 +28,10 @@ class ConfigAttr(Getter):
             if not isinstance(config, self.config_cls):
                 continue
 
-            yield getattr(config, name)
+            meta = ConfigAttrMeta(config, name)
+            yield getattr(config, name), meta
 
+@dataclass
+class ConfigAttrMeta:
+    config: Config
+    attr: str

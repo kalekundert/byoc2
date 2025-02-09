@@ -10,16 +10,26 @@ from .load import (
 )
 from .params.param import param, getitem
 from .params.config_attr import config_attr, ConfigAttr
-from .getters import Getter, Key, Method, Func, Value
-from .cast import arithmetic_eval, int_eval, float_eval
-from .pick import ValuesIter, first
-from .configs.config import Config, configs
-from .configs.environment import EnvironmentConfig
-from .configs.cli import CliConfig, ArgparseConfig, DocoptConfig, mako_usage
-from .configs.files import FileConfig, JsonConfig, NtConfig, TomlConfig, YamlConfig
-from .configs.finders import Finder, DictFinder
-from .utils import identity, lookup
+from .getters import Getter, Key, Method, Func, Value, SourceMeta
+from .cast import (
+        CastFuncs, relpath, arithmetic_eval, int_eval, float_eval, 
+        ArithmeticError,
+)
+from .pick import ValuesIter, first, list, merge_dicts
+from .configs.config import Config
+from .configs.env_var import EnvVarConfig, EnvVarMeta
+from .configs.cli import (
+        CliConfig, CliMeta, ArgparseConfig, DocoptConfig, mako_usage,
+)
+from .configs.files import (
+        FileConfig, FileMeta, JsonConfig, NtConfig, TomlConfig, YamlConfig,
+)
+from .configs.finders import Finder, DictFinder, dict_like
+from .meta import meta_from_collection
+from .utils import identity, do_nothing, lookup
 from .errors import UsageError, NoValueFound
+
+from .load import configs, meta
 
 # Make everything imported above appear to come from this module:
 _post_import_keys = set(globals())

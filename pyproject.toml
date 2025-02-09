@@ -14,8 +14,10 @@ classifiers = [
   'Programming Language :: Python :: 3',
 ]
 dependencies = [
+  'funcy',
   'more_itertools',
   'pipeline_func',
+  'smartcall',
   'tidyexc',
 ]
 
@@ -23,6 +25,8 @@ dependencies = [
 all = [
   'docopt',
   'mako',
+  'nestedtext',
+  'pyyaml',
 ]
 test = [
   'pytest',

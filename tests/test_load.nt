@@ -1,5 +1,54 @@
 test_load:
   -
+    id: value
+    app:
+      > class MyApp:
+      >   x = byoc.param(Value(1))
+    expected:
+      x: 1
+  -
+    id: value-meta
+    app:
+      > class MyApp(MetaMixin):
+      >   x = byoc.param(Value(1))
+    expected:
+      x: 1
+      meta.x.file: '<string>'
+      meta.x.line: 2
+  -
+    id: func
+    app:
+      > class MyApp:
+      >   x = byoc.param(Func(list))
+    expected:
+      x: []
+  -
+    id: method
+    app:
+      > class MyApp:
+      >
+      >   def calc_x(self):
+      >       return 1
+      >
+      >   x = byoc.param(Method(calc_x))
+
+    expected:
+      x: 1
+  -
+    id: method-meta
+    app:
+      > class MyApp(MetaMixin):
+      >
+      >   def calc_x(self):
+      >       return 1
+      >
+      >   x = byoc.param(Method(calc_x))
+
+    expected:
+      x: 1
+      meta.x.file: '<string>'
+      meta.x.line: 6
+  -
     id: key
     app:
       > class MyApp:
@@ -12,6 +61,34 @@ test_load:
 
     expected:
       x: 1
+  -
+    id: key-callable
+    app:
+      > from operator import itemgetter
+      >
+      > class MyApp:
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield DictConfig({'x': 1})
+      >
+      >   x = byoc.param(Key(DictConfig, itemgetter('x')))
+
+    expected:
+      x: 1
+  -
+    id: key-iterable
+    app:
+      > class MyApp:
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield DictConfig({'x': {'y': 1}})
+      >
+      >   xy = byoc.param(Key(DictConfig, ['x', 'y']))
+
+    expected:
+      xy: 1
   -
     id: key-cast
     app:
@@ -110,31 +187,170 @@ test_load:
       type: NoValueFound
       message: no value found for <param MyApp.x>
   -
-    id: method
+    id: key-meta
     app:
-      > class MyApp:
+      > class MyConfig(byoc.Config):
       >
-      >   def calc_x(self):
-      >       return 1
+      >     def iter_finders(self):
+      >         yield byoc.DictFinder(
+      >             values={'x': 1},
+      >             meta=2,
+      >         )
       >
-      >   x = byoc.param(Method(calc_x))
+      > class MyApp(MetaMixin):
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield MyConfig()
+      >
+      >   x = byoc.param(Key(MyConfig, 'x'))
 
     expected:
       x: 1
+      meta.x: 2
   -
-    id: func
+    id: key-meta-lookup
     app:
-      > class MyApp:
-      >   x = byoc.param(Func(list))
-    expected:
-      x: []
-  -
-    id: value
-    app:
-      > class MyApp:
-      >   x = byoc.param(Value(1))
+      > class MyConfig(byoc.Config):
+      >
+      >     def iter_finders(self):
+      >         yield byoc.DictFinder(
+      >             values={'x': 1},
+      >             meta={'x': 2},
+      >             lookup_meta=True,
+      >         )
+      >
+      > class MyApp(MetaMixin):
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield MyConfig()
+      >
+      >   x = byoc.param(Key(MyConfig, 'x'))
+
     expected:
       x: 1
+      meta.x: 2
+  -
+    id: key-schema
+    app:
+      > def plus_1(d):
+      >     return {k: v + 1 for k, v in d.items()}
+      >
+      > class MyConfig(byoc.Config):
+      >
+      >     def iter_finders(self):
+      >         yield byoc.DictFinder({'x': 1}, schema=plus_1)
+      >
+      > class MyApp:
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield MyConfig()
+      >
+      >   x = byoc.param(Key(MyConfig, 'x'))
+
+    expected:
+      x: 2
+  -
+    id: key-schema-meta-lookup
+    app:
+      > def my_schema(values, meta):
+      >      meta_out = strip_keys(meta)
+      >      meta.clear()
+      >      meta.update(meta_out)
+      >      return strip_keys(values)
+      >
+      > def strip_keys(d):
+      >     return {k[0]: v for k, v in d.items()}
+      >
+      > class MyConfig(byoc.Config):
+      >
+      >     def iter_finders(self):
+      >         yield byoc.DictFinder(
+      >             values={'x-verbose': 1},
+      >             meta={'x-verbose': 2},
+      >             schema=my_schema,
+      >             lookup_meta=True,
+      >         )
+      >
+      > class MyApp(MetaMixin):
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield MyConfig()
+      >
+      >   x = byoc.param(Key(MyConfig, 'x'))
+
+    expected:
+      x: 1
+      meta.x: 2
+  -
+    id: key-root
+    app:
+      > class MyConfig(byoc.Config):
+      >
+      >     def iter_finders(self):
+      >         yield byoc.DictFinder(
+      >             values={'x': {'y': 1}},
+      >             root_key='x',
+      >         )
+      >
+      > class MyApp:
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield MyConfig()
+      >
+      >   y = byoc.param(Key(MyConfig, 'y'))
+
+    expected:
+      y: 1
+  -
+    id: key-root-missing
+    app:
+      > class MyConfig(byoc.Config):
+      >
+      >     def iter_finders(self):
+      >         yield byoc.DictFinder(
+      >             values={'x': {'y': 1}},
+      >             root_key='z',
+      >         )
+      >
+      > class MyApp:
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield MyConfig()
+      >
+      >   y = byoc.param(Key(MyConfig, 'y'), Value(2))
+
+    expected:
+      y: 2
+  -
+    id: key-root-meta-lookup
+    app:
+      > class MyConfig(byoc.Config):
+      >
+      >     def iter_finders(self):
+      >         yield byoc.DictFinder(
+      >             values={'x': {'y': 1}},
+      >             meta={'x': {'y': 2}},
+      >             root_key='x',
+      >             lookup_meta=True,
+      >         )
+      >
+      > class MyApp(MetaMixin):
+      >
+      >   @byoc.configs
+      >   def iter_configs(self):
+      >       yield MyConfig()
+      >
+      >   y = byoc.param(Key(MyConfig, 'y'))
+
+    expected:
+      y: 1
+      meta.y: 2
   -
     id: config-attr
     app:
@@ -146,11 +362,13 @@ test_load:
       >   def iter_finders(self):
       >       yield byoc.DictFinder({'y': 2})
       >
-      > class MyApp:
+      > my_config = MyConfig()
+      >
+      > class MyApp(MetaMixin):
       >
       >   @byoc.configs
       >   def iter_configs(self):
-      >       yield MyConfig()
+      >       yield my_config
       >
       >   x = byoc.config_attr(MyConfig)
       >   x_named = byoc.config_attr(MyConfig, 'x')
@@ -160,6 +378,10 @@ test_load:
       x: 1
       x_named: 1
       y: 2
+      meta.x.config: my_config
+      meta.x.attr: 'x'
+      meta.x_named.config: my_config
+      meta.x_named.attr: 'x'
   -
     id: cast
     app:
@@ -216,6 +438,64 @@ test_load:
       >   )
     expected:
       x: [1, 2]
+  -
+    id: pick-list-meta
+    app:
+      > class MyApp(MetaMixin):
+      >   x = byoc.param(
+      >       Value(1),
+      >       Value(2),
+      >       pick=byoc.list,
+      >   )
+    expected:
+      x: [1, 2]
+      meta.x.0.file: '<string>'
+      meta.x.0.line: 3
+      meta.x.1.file: '<string>'
+      meta.x.1.line: 4
+  -
+    id: pick-merge-dicts
+    app:
+      > class MyApp:
+      >   x = byoc.param(
+      >       Value({'a': 1, 'b': 2}),
+      >       Value({'a': 3, 'c': 4}),
+      >       pick=byoc.merge_dicts,
+      >   )
+    expected:
+      x: {'a': 1, 'b': 2, 'c': 4}
+  -
+    id: pick-merge-dicts-meta
+    app:
+      > class MyApp(MetaMixin):
+      >   x = byoc.param(
+      >       Value({'a': 1, 'b': 2}),
+      >       Value({'a': 3, 'c': 4}),
+      >       pick=byoc.merge_dicts,
+      >   )
+    expected:
+      x: {'a': 1, 'b': 2, 'c': 4}
+      meta.x.a.file: '<string>'
+      meta.x.a.line: 3
+      meta.x.b.file: '<string>'
+      meta.x.b.line: 3
+      meta.x.c.file: '<string>'
+      meta.x.c.line: 4
+  -
+    id: pick-cast
+    app:
+      > def my_pick(xs):
+      >   return [x for x in xs if x > 2]
+      >
+      > class MyApp:
+      >   x = byoc.param(
+      >       Value(1),
+      >       Value(2),
+      >       cast=lambda x: x + 1,
+      >       pick=my_pick,
+      >   )
+    expected:
+      x: [3]
   -
     id: hidden
     app:
@@ -391,6 +671,20 @@ test_load:
       children.0.x: 1
       children.1.x: 1
   -
+    id: recursive-dict
+    app:
+      > class MyChild:
+      >   z = byoc.param(Value(1))
+      >
+      > class MyApp:
+      >   children = byoc.param(
+      >       Value({'x': MyChild(), 'y': MyChild()}),
+      >       on_load=byoc.recursive_load_from_dict_values,
+      >   )
+    expected:
+      children.x.z: 1
+      children.y.z: 1
+  -
     id: recursive-same-child-two-attrs
     app:
       > class MyChild:
@@ -408,20 +702,6 @@ test_load:
     expected:
       child_1.x: 1
       child_2.x: 1
-  -
-    id: recursive-dict
-    app:
-      > class MyChild:
-      >   z = byoc.param(Value(1))
-      >
-      > class MyApp:
-      >   children = byoc.param(
-      >       Value({'x': MyChild(), 'y': MyChild()}),
-      >       on_load=byoc.recursive_load_from_dict_values,
-      >   )
-    expected:
-      children.x.z: 1
-      children.y.z: 1
   -
     id: recursive-configs
     app:
@@ -626,6 +906,61 @@ test_load:
 
     expected:
       child.x: 2
+  -
+    id: err-duplicate-attr
+    app:
+      > class MyChild:
+      >   x = byoc.param(Value(1))
+      >
+      > class MyApp:
+      >   children = byoc.param(
+      >       Value(2 * [MyChild()]),
+      >       on_load=byoc.recursive_load_from_list,
+      >   )
+    error:
+      type: UsageError
+      message:
+        - cannot load the same attribute twice
+        - app: <MyChild
+        - param: <param MyChild.x>
+  -
+    id: err-duplicate-meta
+    app:
+      > class MyApp:
+      >
+      >   @byoc.meta
+      >   def get_meta_1(self):
+      >       pass
+      >
+      >   @byoc.meta
+      >   def get_meta_2(self):
+      >       pass
+    error:
+      type: UsageError
+      message:
+        - cannot mark more than one method with `@byoc.meta`
+        - get_meta_1
+        - get_meta_2
+  -
+    id: err-duplicate-meta-inheritance
+    app:
+      > class MyParent:
+      >
+      >   @byoc.meta
+      >   def get_meta_1(self):
+      >       pass
+      >
+      > class MyApp(MyParent):
+      >
+      >   @byoc.meta
+      >   def get_meta_2(self):
+      >       pass
+    error:
+      type: UsageError
+      message:
+        - cannot mark more than one method with `@byoc.meta`
+        - get_meta_1
+        - get_meta_2
 
 test_load_collection:
   -
@@ -634,8 +969,8 @@ test_load_collection:
       - byoc.param(Value(1))
       - 2
     expected:
-      0: 1
-      1: 2
+      app:
+        [1,2]
   -
     id: list-list
     app: 
@@ -645,10 +980,8 @@ test_load_collection:
         - byoc.param(Value(3))
         - 4
     expected:
-      0: 1
-      1: 2
-      2.0: 3
-      2.1: 4
+      app:
+        [1, 2, [3, 4]]
   -
     id: list-dict
     app: 
@@ -658,18 +991,16 @@ test_load_collection:
         x: byoc.param(Value(3))
         y: 4
     expected:
-      0: 1
-      1: 2
-      2.x: 3
-      2.y: 4
+      app:
+        [1, 2, {x: 3, y: 4}]
   -
     id: dict
     app: 
       x: byoc.param(Value(1))
       y: 2
     expected:
-      x: 1
-      y: 2
+      app:
+        {x: 1, y: 2}
   -
     id: dict-dict
     app: 
@@ -679,10 +1010,8 @@ test_load_collection:
         a: byoc.param(Value(3))
         b: 4
     expected:
-      x: 1
-      y: 2
-      z.a: 3
-      z.b: 4
+      app:
+        {x: 1, y: 2, z: {a: 3, b: 4}}
   -
     id: dict-list
     app:
@@ -692,28 +1021,78 @@ test_load_collection:
         - byoc.param(Value(3))
         - 4
     expected:
-      x: 1
-      y: 2
-      z.0: 3
-      z.1: 4
+      app:
+        {x: 1, y: 2, z: [3, 4]}
   -
     id: configs
     app: 
-      x: byoc.param(Key(DictConfig, 'x'))
-      y: byoc.param(Key(DictConfig, 'y'))
+      - byoc.param(Key(DictConfig, 'x'))
+      - byoc.param(Key(DictConfig, 'y'))
     configs:
       - DictConfig({'x': 1, 'y': 2})
     expected:
-      x: 1
-      y: 2
+      app:
+        [1, 2]
+  -
+    id: meta
+    app: 
+      # Explicitly use a multiline string, so that we get real line numbers.
+      > dict(
+      >     x=byoc.param(Value(1)),
+      >     y=[
+      >         byoc.param(Value(2)),
+      >         byoc.param(Value(3)),
+      >         4,
+      >     ],
+      >     z=5,
+      > )
+    meta:
+      x: None
+      y: [None, None, None]
+      z: None
+    expected:
+      app:
+        {x: 1, y: [2, 3, 4], z: 5}
+      meta:
+        x: byoc.SourceMeta('<string>', 2)
+        y:
+          - byoc.SourceMeta('<string>', 4)
+          - byoc.SourceMeta('<string>', 5)
+          - None
+        z: None
+  -
+    id: meta-from-collection
+    app: 
+      # Explicitly use a multiline string, so that we get real line numbers.
+      > dict(
+      >     x=byoc.param(Value(1)),
+      >     y=[
+      >         byoc.param(Value(2)),
+      >         byoc.param(Value(3)),
+      >         4,
+      >     ],
+      >     z=5,
+      > )
+    meta: byoc.meta_from_collection(app)
+    expected:
+      app:
+        {x: 1, y: [2, 3, 4], z: 5}
+      meta:
+        x: byoc.SourceMeta('<string>', 2)
+        y:
+          - byoc.SourceMeta('<string>', 4)
+          - byoc.SourceMeta('<string>', 5)
+          - None
+        z: None
   -
     id: getitem
     app: 
       x: 1
       y: byoc.param(Method(lambda self: byoc.getitem(self, 'x') + 1))
     expected:
-      x: 1
-      y: 2
+      app:
+        x: 1
+        y: 2
   -
     id: err-not-list-or-dict
     app: byoc.param(Value(1))

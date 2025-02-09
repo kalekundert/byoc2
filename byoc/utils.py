@@ -6,6 +6,9 @@ def identity(x):
     """
     return x
 
+def do_nothing(*args, **kwargs):
+    pass
+
 def lookup(obj, key):
     """
     Lookup the given key in the given object.

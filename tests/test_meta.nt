@@ -1,0 +1,77 @@
+test_meta_from_collection:
+  -
+    id: non-collection
+    collection: 1
+    expected: None
+  -
+    id: list-0
+    collection: []
+    expected: []
+  -
+    id: list-1
+    collection: [1]
+    expected: [None]
+  -
+    id: list-2
+    collection: [1, 2]
+    expected: [None, None]
+  -
+    id: dict-0
+    collection: {}
+    expected: {}
+  -
+    id: dict-1
+    collection: {1: 2}
+    expected: {1: None}
+  -
+    id: dict-2
+    collection: {1: 2, 3: 4}
+    expected: {1: None, 3: None}
+  -
+    id: list-1-list-0
+    collection: [[]]
+    expected: [[]]
+  -
+    id: list-1-list-1
+    collection: [[1]]
+    expected: [[None]]
+  -
+    id: list-2-list-2
+    collection: [[1, 2], [3, 4]]
+    expected: [[None, None], [None, None]]
+  -
+    id: list-1-dict-0
+    collection: [{}]
+    expected: [{}]
+  -
+    id: list-1-dict-1
+    collection: [{1: 2}]
+    expected: [{1: None}]
+  -
+    id: list-2-dict-2
+    collection: [{1: 2, 3: 4}, {5: 6, 7: 8}]
+    expected: [{1: None, 3: None}, {5: None, 7: None}]
+  -
+    id: dict-1-list-0
+    collection: {1: []}
+    expected: {1: []}
+  -
+    id: dict-1-list-1
+    collection: {1: [2]}
+    expected: {1: [None]}
+  -
+    id: dict-2-list-2
+    collection: {1: [2, 3], 4: [5, 6]}
+    expected: {1: [None, None], 4: [None, None]}
+  -
+    id: dict-1-dict-0
+    collection: {1: {}}
+    expected: {1: {}}
+  -
+    id: dict-1-dict-1
+    collection: {1: {2: 3}}
+    expected: {1: {2: None}}
+  -
+    id: dict-2-dict-2
+    collection: {1: {2: 3, 4: 5}, 6: {7: 8, 9: 10}}
+    expected: {1: {2: None, 4: None}, 6: {7: None, 9: None}}

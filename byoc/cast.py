@@ -1,8 +1,86 @@
 import sys
+import smartcall
 
-from typing import Union, Optional
 from numbers import Real
 from tidyexc import Error
+from smartcall import PosOnly, KwOnly
+from more_itertools import value_chain
+from pathlib import Path
+
+from typing import Union, Optional, TypeVar, Any, Callable
+
+T = TypeVar('T')
+
+class CastFuncs:
+    """
+    A collection of user-specified cast functions.
+
+    This class abstracts two aspects of handling the *cast* functions that 
+    users can provide to both getters and parameters:
+
+    1. The user can provide either a single callable or an iterable of 
+       callables.  This class converts either input into a list.  This list can 
+       also be modified after the fact (e.g. by `toggle_param`).
+
+    2. If the cast function can accept certain optional keyword arguments, 
+       those arguments will be provided, to give extra information about the 
+       context in which the function is being called.
+    """
+
+    def __init__(self, func_or_funcs):
+        self.funcs = [
+                x for x in value_chain(func_or_funcs)
+                if x is not None
+        ]
+
+    def __call__(self, value, *, app, meta):
+        for f in self.funcs:
+            value = smartcall.call(
+                    f,
+                    PosOnly(value, required=True),
+                    KwOnly(app=app),
+                    KwOnly(meta=meta),
+            )
+
+        return value
+
+def relpath(
+        path: Any,
+        *,
+        meta: T,
+        root_from_meta: Callable[[T], Path]=\
+                lambda meta: Path(meta.path).parent,
+) -> Path:
+    """
+    Resolve paths loaded from a file.  Relative paths are interpreted as being 
+    relative to the parent directory of the file they were loaded from.
+
+    Arguments:
+        value:
+            The path to interpret relative to the directory specified by 
+            *meta*.
+
+        meta:
+
+        root_from_meta:
+            A callable that returns the parent directory for relative paths, 
+            given a metadata object describing how the value in question was 
+            loaded. The default implementation assumes that the metadata object 
+            has a :attr:`location` attribute that specifies the path to the 
+            relevant file.  This will work if (i) the value was actually loaded 
+            from a file and (ii) the default pick function was used (i.e. 
+            `first`).  For other pick functions, you may need to modify this 
+            argument accordingly.
+
+    Returns:
+        An absolute path.
+    """
+    path = Path(path)
+    if path.is_absolute():
+        return path
+
+    root = root_from_meta(meta)
+    return root.resolve() / path
 
 def arithmetic_eval(expr: Union[str, Real], vars: Optional[dict]=None) -> Real:
     """\
@@ -114,7 +192,6 @@ def float_eval(expr: Union[str, Real], vars: Optional[dict]=None) -> float:
     Same as `arithmetic_eval()`, but convert the result to `float`.
     """
     return float(arithmetic_eval(expr, vars))
-
 
 class ArithmeticError(Error, SyntaxError):
 

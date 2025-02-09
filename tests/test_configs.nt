@@ -12,12 +12,12 @@ test_cli_config:
       >     brief = byoc.config_attr(CliConfig)
       >
       >     x = byoc.param(Key(CliConfig, 'x'))
-      >     y = byoc.param(Key(CliConfig, 'y'))
+      >     y = byoc.param(Key(CliConfig, 'y'), Value(False))
       >
       >     def get_argparse(self):
       >         import argparse
       >         p = argparse.ArgumentParser(description="Do something")
-      >         p.add_argument('x')
+      >         p.add_argument('x', type=int)
       >         p.add_argument('-y', action='store_true')
       >         return p
     usage:
@@ -37,67 +37,186 @@ test_cli_config:
     invocations:
       -
         argv:
-          > ./app x
+          > ./app 1
         expected:
-          x: 'x'
+          x: 1
           y: False
       -
         argv:
-          > ./app x -y
+          > ./app 1 -y
         expected:
-          x: 'x'
+          x: 1
           y: True
   -
-    id: argparse-init
+    id: argparse-unspecified-?
     app:
+      > class MyApp:
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield ArgparseConfig(self.get_argparse)
+      >
+      >     x = byoc.param(Key(CliConfig, 'x'), Value('default'))
+      >
+      >     def get_argparse(self):
+      >         import argparse
+      >         p = argparse.ArgumentParser()
+      >         p.add_argument('x', nargs='?', type=int)
+      >         return p
+    invocations:
+      -
+        argv:
+          > ./app 
+        expected:
+          x: 'default'
+      -
+        argv:
+          > ./app 1
+        expected:
+          x: 1
+  -
+    id: argparse-unspecified-*
+    app:
+      > class MyApp:
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield ArgparseConfig(self.get_argparse)
+      >
+      >     x = byoc.param(Key(CliConfig, 'x'), Value('default'))
+      >
+      >     def get_argparse(self):
+      >         import argparse
+      >         p = argparse.ArgumentParser()
+      >         p.add_argument('x', nargs='*', type=int)
+      >         return p
+    invocations:
+      -
+        argv:
+          > ./app 
+        expected:
+          x: 'default'
+      -
+        argv:
+          > ./app 1
+        expected:
+          x: [1]
+      -
+        argv:
+          > ./app 1 2
+        expected:
+          x: [1, 2]
+  -
+    id: argparse-unspecified-flag
+    app:
+      > class MyApp:
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield ArgparseConfig(self.get_argparse)
+      >
+      >     x = byoc.param(Key(CliConfig, 'x'), Value('default'))
+      >
+      >     def get_argparse(self):
+      >         import argparse
+      >         p = argparse.ArgumentParser()
+      >         p.add_argument('-x', action='store_true')
+      >         return p
+    invocations:
+      -
+        argv:
+          > ./app 
+        expected:
+          x: 'default'
+      -
+        argv:
+          > ./app -x
+        expected:
+          x: True
+  -
+    id: argparse-unspecified-option
+    app:
+      > class MyApp:
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield ArgparseConfig(self.get_argparse)
+      >
+      >     x = byoc.param(Key(CliConfig, 'x'), Value('default'))
+      >
+      >     def get_argparse(self):
+      >         import argparse
+      >         p = argparse.ArgumentParser()
+      >         p.add_argument('-x', type=int)
+      >         return p
+    invocations:
+      -
+        argv:
+          > ./app 
+        expected:
+          x: 'default'
+      -
+        argv:
+          > ./app -x 1
+        expected:
+          x: 1
+  -
+    id: argparse-schema
+    # Use a schema that only changes keys, not values.  The former is a more 
+    # complicated case, because the schema needs to account for the metadata as 
+    # well.  But there are tests for that in `test_load.nt`, so we don't need 
+    # to repeat them here.
+    app:
+      > def plus_1(d):
+      >     return {k: v + 1 for k, v in d.items()}
+      >     
       > class MyApp:
       >
       >     @byoc.configs
       >     def iter_configs(self):
       >         yield ArgparseConfig(
       >             parser=self.get_argparse,
-      >             schema=lambda d: {**d, 'x': d['x'] + '*'},
+      >             schema=plus_1,
       >         )
-
-      >     usage = byoc.config_attr(CliConfig)
-      >     brief = byoc.config_attr(CliConfig)
       >
       >     x = byoc.param(Key(CliConfig, 'x'))
-      >     y = byoc.param(Key(CliConfig, 'y'))
       >
       >     def get_argparse(self):
       >         import argparse
-      >         p = argparse.ArgumentParser(description="Do something")
-      >         p.add_argument('x')
-      >         p.add_argument('-y', action='store_true')
+      >         p = argparse.ArgumentParser()
+      >         p.add_argument('x', type=int)
       >         return p
-    usage:
-      > usage: app [-h] [-y] x
-      >
-      > Do something
-      >
-      > positional arguments:
-      >   x
-      >
-      > optional arguments:
-      >   -h, --help  show this help message and exit
-      >   -y
-      >
-    brief:
-      > Do something
+
     invocations:
       -
         argv:
-          > ./app x
+          > ./app 1
         expected:
-          x: 'x*'
-          y: False
+          x: 2
+  -
+    id: argparse-meta
+    app:
+      > class MyApp(MetaMixin):
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield ArgparseConfig(self.get_argparse)
+      >
+      >     x = byoc.param(Key(CliConfig, 'x'))
+      >
+      >     def get_argparse(self):
+      >         import argparse
+      >         p = argparse.ArgumentParser()
+      >         p.add_argument('x', type=int)
+      >         return p
+    invocations:
       -
         argv:
-          > ./app x -y
+          > ./app 1
         expected:
-          x: 'x*'
-          y: True
+          x: 1
+          meta.x.name: 'x'
+          meta.x.value: 1
   -
     id: docopt
     app:
@@ -106,7 +225,7 @@ test_cli_config:
       >     Do something.
       >
       >     Usage:
-      >         app <x> [<y>...] [-z]
+      >         app <x> [-y]
       >     """
       >
       >     @byoc.configs
@@ -116,46 +235,152 @@ test_cli_config:
       >     usage = byoc.config_attr(CliConfig)
       >     brief = byoc.config_attr(CliConfig)
       >
-      >     x = byoc.param(Key(CliConfig, '<x>'))
-      >     y = byoc.param(Key(CliConfig, '<y>'), Value(None))
-      >     z = byoc.param(Key(CliConfig, '-z'), Value(None))
+      >     x = byoc.param(Key(CliConfig, '<x>', cast=int))
+      >     y = byoc.param(Key(CliConfig, '-y'), Value(False))
     usage:
       > Do something.
       >
       > Usage:
-      >     app <x> [<y>...] [-z]
+      >     app <x> [-y]
       >
     brief:
       > Do something.
     invocations:
       -
         argv:
-          > ./app x
+          > ./app 1
         expected:
-          x: 'x'
-          y: None
-          z: None
+          x: 1
+          y: False
       -
         argv:
-          > ./app x -z
+          > ./app 1 -y
         expected:
-          x: 'x'
-          y: None
-          z: True
-      -
-        argv:
-          > ./app x y -z
-        expected:
-          x: 'x'
-          y: ['y']
-          z: True
+          x: 1
+          y: True
   -
-    id: docopt-init
+    id: docopt-unspecified-?
+    app:
+      > class MyApp:
+      >     """\
+      >     Do something.
+      >
+      >     Usage:
+      >         app [<x>]
+      >     """
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield DocoptConfig(self.__doc__)
+      >
+      >     x = byoc.param(Key(CliConfig, '<x>', cast=int), Value('default'))
+    invocations:
+      -
+        argv:
+          > ./app
+        expected:
+          x: 'default'
+      -
+        argv:
+          > ./app 1
+        expected:
+          x: 1
+  -
+    id: docopt-unspecified-*
+    app:
+      > def ints(xs):
+      >    return [int(x) for x in xs]
+      >
+      > class MyApp:
+      >     """\
+      >     Do something.
+      >
+      >     Usage:
+      >         app [<x>...]
+      >     """
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield DocoptConfig(self.__doc__)
+      >
+      >     x = byoc.param(Key(CliConfig, '<x>', cast=ints), Value('default'))
+    invocations:
+      -
+        argv:
+          > ./app
+        expected:
+          x: 'default'
+      -
+        argv:
+          > ./app 1
+        expected:
+          x: [1]
+      -
+        argv:
+          > ./app 1 2
+        expected:
+          x: [1, 2]
+  -
+    id: docopt-unspecified-flag
+    app:
+      > class MyApp:
+      >     """\
+      >     Do something.
+      >
+      >     Usage:
+      >         app [-x]
+      >     """
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield DocoptConfig(self.__doc__)
+      >
+      >     x = byoc.param(Key(CliConfig, '-x'), Value('default'))
+    invocations:
+      -
+        argv:
+          > ./app
+        expected:
+          x: 'default'
+      -
+        argv:
+          > ./app -x
+        expected:
+          x: True
+  -
+    id: docopt-unspecified-option
+    app:
+      > class MyApp:
+      >     """\
+      >     Do something.
+      >
+      >     Usage:
+      >         app [-x <x>]
+      >     """
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield DocoptConfig(self.__doc__)
+      >
+      >     x = byoc.param(Key(CliConfig, '-x', cast=int), Value('default'))
+    invocations:
+      -
+        argv:
+          > ./app
+        expected:
+          x: 'default'
+      -
+        argv:
+          > ./app -x 1
+        expected:
+          x: 1
+  -
+    id: docopt-version
     app:
       > class MyApp:
       >     """\
       >     Usage:
-      >         app <x> [<y>...] [-z]
+      >         app <x>
       >     """
       >
       >     @byoc.configs
@@ -163,43 +388,110 @@ test_cli_config:
       >         yield DocoptConfig(
       >             usage=self.__doc__,
       >             version='1.0',
-      >             options_first=True,
-      >             schema=lambda d: {**d, '<x>': d['<x>'] + '*'},
       >         )
       >
-      >     usage = byoc.config_attr(CliConfig)
-      >     brief = byoc.config_attr(CliConfig)
-      >
-      >     x = byoc.param(Key(CliConfig, '<x>'))
-      >     y = byoc.param(Key(CliConfig, '<y>'), Value(None))
-      >     z = byoc.param(Key(CliConfig, '-z'), Value(None))
-    usage:
-      > Usage:
-      >     app <x> [<y>...] [-z]
-      >
-    brief:
+      >     x = byoc.param(Key(CliConfig, '<x>', cast=int))
     invocations:
       -
         argv:
-          > ./app x
+          > ./app 1
         expected:
-          x: 'x*'
-          y: None
-          z: None
+          x: 1
       -
         argv:
-          > ./app x -z
-        expected:
-          x: 'x*'
-          y: ['-z']
-          z: None
+          > ./app --version
+        error: SystemExit
+        stdout:
+          > 1.0
+          >
+  -
+    id: docopt-options-first
+    app:
+      > class MyApp:
+      >     """\
+      >     Usage:
+      >         app [-x] <y>...
+      >     """
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield DocoptConfig(
+      >             usage=self.__doc__,
+      >             options_first=True,
+      >         )
+      >
+      >     x = byoc.param(Key(CliConfig, '-x'), Value(False))
+      >     y = byoc.param(Key(CliConfig, '<y>'))
+    invocations:
       -
         argv:
-          > ./app -z x
+          > ./app y
         expected:
-          x: 'x*'
-          y: None
-          z: True
+          x: False
+          y: ['y']
+      -
+        argv:
+          > ./app -x y
+        expected:
+          x: True
+          y: ['y']
+      -
+        argv:
+          > ./app y -x
+        expected:
+          x: False
+          y: ['y', '-x']
+  -
+    id: docopt-schema
+    app:
+      > def plus_1(d):
+      >     return {k: int(v) + 1 for k, v in d.items()}
+      >     
+      > class MyApp:
+      >     """\
+      >     Usage:
+      >         app <x>
+      >     """
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield DocoptConfig(
+      >             usage=self.__doc__,
+      >             schema=plus_1,
+      >         )
+      >
+      >     x = byoc.param(Key(CliConfig, '<x>'))
+    invocations:
+      -
+        argv:
+          > ./app 1
+        expected:
+          x: 2
+  -
+    id: docopt-meta
+    app:
+      > def ints(xs):
+      >     return [int(x) for x in xs]
+      >
+      > class MyApp(MetaMixin):
+      >     """\
+      >     Usage:
+      >         app <x>
+      >     """
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield DocoptConfig(self.__doc__)
+      >
+      >     x = byoc.param(Key(CliConfig, '<x>', cast=int))
+    invocations:
+      -
+        argv:
+          > ./app 1
+        expected:
+          x: 1
+          meta.x.name: '<x>'
+          meta.x.value: '1'
   -
     id: docopt-mako
     app:
@@ -396,3 +688,78 @@ test_file_config:
         >   y: 1
     expected:
       y: 1
+  -
+    id: yaml-meta
+    app:
+      > class MyApp(MetaMixin):
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield YamlConfig('x.yml')
+      >
+      >     x = byoc.param(Key(YamlConfig, 'x'))
+    tmp_files:
+      x.yml:
+        > x: 1
+    expected:
+      x: 1
+      meta.x.path: 'x.yml'
+  -
+    id: yaml-relpath
+    app:
+      > class MyApp:
+      >
+      >     @byoc.configs
+      >     def iter_configs(self):
+      >         yield YamlConfig('path/to/conf.yml')
+      >
+      >     x = byoc.param(Key(YamlConfig, 'x', cast=byoc.relpath))
+      >     y = byoc.param(Key(YamlConfig, 'y', cast=byoc.relpath))
+    tmp_files:
+      path/to/conf.yml:
+        > x: README
+        > y: /README
+    expected:
+      x: CWD / 'path/to/README'
+      y: Path('/README')
+
+test_dict_like:
+  -
+    f:
+      > def f(x):
+      >     return x + 1
+    x: 1
+    expected: 2
+  -
+    f:
+      > def f(x):
+      >     raise KeyError
+    error:
+      type: KeyError
+  -
+    f:
+      > def f(x):
+      >     raise IndexError
+    raises:
+      - IndexError
+    error:
+      type: KeyError
+  -
+    f:
+      > def f(x):
+      >     raise IndexError
+    raises:
+      - AttributeError
+    error:
+      type: IndexError
+  -
+    f:
+      > def f(x):
+      >     raise IndexError
+    raises:
+      - AttributeError
+      - IndexError
+    error:
+      type: KeyError
+
+

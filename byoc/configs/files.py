@@ -1,6 +1,8 @@
 from .config import Config
 from .finders import DictFinder
 from .utils import maybe_call
+from dataclasses import dataclass
+from pathlib import Path
 from more_itertools import always_iterable
 
 class FileConfig(Config):
@@ -28,6 +30,7 @@ class FileConfig(Config):
 
             finder = DictFinder(
                     values,
+                    meta=FileMeta(path),
                     schema=self.schema,
                     root_key=self.root_key,
             )
@@ -35,6 +38,10 @@ class FileConfig(Config):
 
     def iter_finders(self):
         yield from self.finders
+
+@dataclass
+class FileMeta:
+    path: Path
 
 class JsonConfig(FileConfig):
 
