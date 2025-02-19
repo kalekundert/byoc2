@@ -1,22 +1,36 @@
 import smartcall
 
-from ..cast import CastFuncs
+from ..apply import Pipeline
 from ..pick import ValuesIter, first
 from ..utils import identity
 from ..errors import UsageError
 from smartcall import PosOrKw, KwOnly
 
 class param:
+    """
+    Describe how to load a value from multiple possible configuration sources.
+
+    Arguments:
+        getters:
+
+        apply:
+
+        pick:
+
+        on_load:
+
+    .. autoclasstoc::
+    """
     
     def __init__(
             self,
             *getters,
+            apply=identity,
             pick=first,
-            cast=identity,
             on_load=None,
     ):
         self.getters = getters
-        self.cast = CastFuncs(cast)
+        self.apply = Pipeline(apply)
         self.pick = pick
         self.on_load = on_load
 
@@ -45,6 +59,19 @@ class param:
         self.name = name
 
     def begin_load(self, loader):
+        """
+        Begin loading this parameter.
+
+        Arguments:
+            loader:
+                The `Loader` object that will be responsible for calculating 
+                and storing values for this parameter.  Each parameter can only 
+                be in use by one loader at a time.
+
+        This method is meant for internal use within `Loader`.  Calling this 
+        method externally would risk breaking some internal invariants and 
+        sanity checks.
+        """
         if self._loader is not None and self._loader is not loader:
             raise UsageError(f"{param} is already being loaded by {self.loader}; cannot begin loading with {loader}")
 
@@ -52,6 +79,13 @@ class param:
         self._begin_count += 1
 
     def end_load(self):
+        """
+        Indicate that this parameter is no longer being loaded.
+
+        This method is meant for internal use within `Loader`.  Calling this 
+        method externally would risk breaking some internal invariants and 
+        sanity checks.
+        """
         self._require_active_loader()
 
         self._begin_count -= 1
@@ -59,10 +93,42 @@ class param:
             self._loader = None
 
     def get_value(self, app):
+        """
+        Return the value of this parameter for the given app.
+
+        Arguments:
+            app:
+                The object that this parameter belongs to.  Parameters can 
+                belong to multiple apps, e.g. if the parameter is a class 
+                attribute and the apps are instances of that class, so this 
+                argument gives us the right app to work with.
+
+        This method is a thin wrapper around `Loader.load_attribute_value`.  
+        Refer there for more information about what exactly this function does 
+        and when it should be used.
+        """
         self._require_active_loader()
         return self._loader.load_attribute_value(app, self)
 
     def load_value(self, app, configs):
+        """
+        Calculate a value for this parameter.
+
+        Arguments:
+            app:
+                See `get_value`.
+
+            configs:
+                The list of configuration sources to use.  Be aware that this 
+                method can be called multiple times with different sets of 
+                configuration sources during a single loading process.
+
+        This method is meant for internal use within `Loader`.  I cannot think 
+        of any other scenario where it would be appropriate to use this method.  
+        Use `get_value` if you want to manually calculate a value for a 
+        parameter.  That will end up calling this method, while also allowing 
+        the loader to do the necessary bookkeeping.
+        """
         self._require_active_loader()
 
         values_iter = ValuesIter(self, self._iter_values(app, configs))
@@ -83,7 +149,7 @@ class param:
     def _iter_values(self, app, configs):
         for getter in self.getters:
             for value, meta in getter.iter_values(app, configs):
-                value = self.cast(value, app=app, meta=meta)
+                value = self.apply(value, app=app, meta=meta)
                 yield value, meta
 
     def _require_active_loader(self):

@@ -77,7 +77,7 @@ class ArgparseConfig(CliConfig):
 
 class DocoptConfig(CliConfig):
     """
-    Parse command-line arguments using the `docopt` library.
+    Parse command-line arguments using the docopt_ library.
     """
 
     def __init__(

@@ -235,7 +235,7 @@ test_cli_config:
       >     usage = byoc.config_attr(CliConfig)
       >     brief = byoc.config_attr(CliConfig)
       >
-      >     x = byoc.param(Key(CliConfig, '<x>', cast=int))
+      >     x = byoc.param(Key(CliConfig, '<x>', apply=int))
       >     y = byoc.param(Key(CliConfig, '-y'), Value(False))
     usage:
       > Do something.
@@ -273,7 +273,7 @@ test_cli_config:
       >     def iter_configs(self):
       >         yield DocoptConfig(self.__doc__)
       >
-      >     x = byoc.param(Key(CliConfig, '<x>', cast=int), Value('default'))
+      >     x = byoc.param(Key(CliConfig, '<x>', apply=int), Value('default'))
     invocations:
       -
         argv:
@@ -303,7 +303,7 @@ test_cli_config:
       >     def iter_configs(self):
       >         yield DocoptConfig(self.__doc__)
       >
-      >     x = byoc.param(Key(CliConfig, '<x>', cast=ints), Value('default'))
+      >     x = byoc.param(Key(CliConfig, '<x>', apply=ints), Value('default'))
     invocations:
       -
         argv:
@@ -362,7 +362,7 @@ test_cli_config:
       >     def iter_configs(self):
       >         yield DocoptConfig(self.__doc__)
       >
-      >     x = byoc.param(Key(CliConfig, '-x', cast=int), Value('default'))
+      >     x = byoc.param(Key(CliConfig, '-x', apply=int), Value('default'))
     invocations:
       -
         argv:
@@ -390,7 +390,7 @@ test_cli_config:
       >             version='1.0',
       >         )
       >
-      >     x = byoc.param(Key(CliConfig, '<x>', cast=int))
+      >     x = byoc.param(Key(CliConfig, '<x>', apply=int))
     invocations:
       -
         argv:
@@ -483,7 +483,7 @@ test_cli_config:
       >     def iter_configs(self):
       >         yield DocoptConfig(self.__doc__)
       >
-      >     x = byoc.param(Key(CliConfig, '<x>', cast=int))
+      >     x = byoc.param(Key(CliConfig, '<x>', apply=int))
     invocations:
       -
         argv:
@@ -571,7 +571,7 @@ test_file_config:
       >         yield NtConfig('x.nt')
       >
       >     x = byoc.param(Key(NtConfig, 'x'))
-      >     y = byoc.param(Key(NtConfig, 'y', cast=int))
+      >     y = byoc.param(Key(NtConfig, 'y', apply=int))
     tmp_files:
       x.nt:
         > x: 1
@@ -713,8 +713,8 @@ test_file_config:
       >     def iter_configs(self):
       >         yield YamlConfig('path/to/conf.yml')
       >
-      >     x = byoc.param(Key(YamlConfig, 'x', cast=byoc.relpath))
-      >     y = byoc.param(Key(YamlConfig, 'y', cast=byoc.relpath))
+      >     x = byoc.param(Key(YamlConfig, 'x', apply=byoc.relpath))
+      >     y = byoc.param(Key(YamlConfig, 'y', apply=byoc.relpath))
     tmp_files:
       path/to/conf.yml:
         > x: README

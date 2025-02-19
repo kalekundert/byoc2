@@ -37,9 +37,10 @@ test = [
 ]
 doc = [
   'sphinx',
+  'sphinx_inline_tabs',
+  'sphinx_paramlinks',
   'sphinx_rtd_theme',
   'myst_parser',
-  'autoclasstoc',
 ]
 
 [project.urls]

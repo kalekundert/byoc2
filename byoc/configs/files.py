@@ -41,6 +41,12 @@ class FileConfig(Config):
 
 @dataclass
 class FileMeta:
+    """
+    Metadata for values loaded from a file.
+    
+    .. attribute:: path
+        The path to the file in question.
+    """
     path: Path
 
 class JsonConfig(FileConfig):

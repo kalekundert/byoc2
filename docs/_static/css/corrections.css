@@ -1,0 +1,94 @@
+/* Format parameters with multiple paragraphs the same as parameters with only 
+ * a single paragraph. */
+
+.field-list p:first-of-type:not(:only-of-type) {
+  display: inline;
+}
+.field-list p:nth-of-type(2) {
+  display: inline;
+}
+.field-list p:nth-of-type(2)::after {
+  content: "";
+  display: block;
+  margin-bottom: 12px;
+}
+
+.field-list p {
+  margin-bottom: 12px !important;
+}
+.field-list div.highlight-default {
+  margin-bottom: 12px !important;
+}
+
+/* Style cross-references like links (i.e. blue, italicized, sans), rather than 
+ * like code (i.e. black, bold, mono). */
+
+.rst-content a code.xref {
+  white-space: normal;
+  max-width: none;
+  background: none;
+  border: none;
+  font-size: 100%;
+  padding: 0px;
+	font-family: "Lato","proxima-nova","Helvetica Neue",Arial,sans-serif;
+	color: #2980B9;
+  overflow-x: visible;
+
+	cursor: pointer;
+  font-style: italic;
+  font-weight: normal;
+}
+
+/* Make inline code stand out less */
+
+.rst-content code.literal {
+  color: #404040;
+}
+.rst-content code {
+	border-radius: 6px;
+	border: none;
+	/*border: 1px solid #e1e4e5;*/
+	font-size: 85%;
+	margin: 0;
+	/*padding: .3em .4em .1em;*/
+  padding: .2em .4em;
+  background: #f0f1f2;
+}
+.rst-content dl dt code {
+  border-radius: 0px;
+  border: none;
+
+	font-size: 100%;
+	margin: 0;
+	padding: 0;
+  background: none;
+}
+.rst-content dl:not(.docutils) tt, .rst-content dl:not(.docutils) tt, .rst-content dl:not(.docutils) code {
+	font-weight: normal;
+}
+
+/* Format the tab buttons more nicely */
+
+button.copybtn {
+  opacity: 1;
+}
+
+:root {
+  /* These colors come from Wyrm, which is where the Sphinx RTD theme imports its 
+   * color scheme from:
+   * git@github.com/snide/wyrm/sass/wyrm_core/_wy_variables.sass
+   */
+  --tabs--label-text: hsl(0,0%,25%);
+  --tabs--label-text--hover: #2980B9;  /*blue*/
+  --tabs--label-text--active: #2980B9;  /*blue*/
+  --tabs--label-text--active--hover: #2980B9;  /*blue*/
+
+  --tabs--label-border--hover: transparent;
+  --tabs--label-border--active: #2980B9;  /*blue*/
+  --tabs--label-border--active--hover: #2980B9;  /*blue*/
+
+  --tabs--label-background--hover: transparent;
+
+  --tabs--border: none;
+}
+

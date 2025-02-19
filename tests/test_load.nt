@@ -90,7 +90,7 @@ test_load:
     expected:
       xy: 1
   -
-    id: key-cast
+    id: key-apply
     app:
       > class MyApp:
       >
@@ -98,7 +98,7 @@ test_load:
       >   def iter_configs(self):
       >       yield DictConfig({'x': '1'})
       >
-      >   x = byoc.param(Key(DictConfig, 'x', cast=int))
+      >   x = byoc.param(Key(DictConfig, 'x', apply=int))
 
     expected:
       x: 1
@@ -383,12 +383,12 @@ test_load:
       meta.x_named.config: my_config
       meta.x_named.attr: 'x'
   -
-    id: cast
+    id: apply
     app:
       > class MyApp:
       >   x = byoc.param(
       >       Value(1),
-      >       cast=lambda x: x + 1
+      >       apply=lambda x: x + 1
       >   )
     expected:
       x: 2
@@ -482,7 +482,7 @@ test_load:
       meta.x.c.file: '<string>'
       meta.x.c.line: 4
   -
-    id: pick-cast
+    id: pick-apply
     app:
       > def my_pick(xs):
       >   return [x for x in xs if x > 2]
@@ -491,7 +491,7 @@ test_load:
       >   x = byoc.param(
       >       Value(1),
       >       Value(2),
-      >       cast=lambda x: x + 1,
+      >       apply=lambda x: x + 1,
       >       pick=my_pick,
       >   )
     expected:
@@ -1054,10 +1054,10 @@ test_load_collection:
       app:
         {x: 1, y: [2, 3, 4], z: 5}
       meta:
-        x: byoc.SourceMeta('<string>', 2)
+        x: byoc.PythonMeta('<string>', 2)
         y:
-          - byoc.SourceMeta('<string>', 4)
-          - byoc.SourceMeta('<string>', 5)
+          - byoc.PythonMeta('<string>', 4)
+          - byoc.PythonMeta('<string>', 5)
           - None
         z: None
   -
@@ -1078,10 +1078,10 @@ test_load_collection:
       app:
         {x: 1, y: [2, 3, 4], z: 5}
       meta:
-        x: byoc.SourceMeta('<string>', 2)
+        x: byoc.PythonMeta('<string>', 2)
         y:
-          - byoc.SourceMeta('<string>', 4)
-          - byoc.SourceMeta('<string>', 5)
+          - byoc.PythonMeta('<string>', 4)
+          - byoc.PythonMeta('<string>', 5)
           - None
         z: None
   -

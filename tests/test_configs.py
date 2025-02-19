@@ -42,7 +42,7 @@ def test_env_var_config(monkeypatch):
             yield EnvVarConfig()
 
         x = byoc.param(
-                Key(EnvVarConfig, 'MY_APP_X', cast=int),
+                Key(EnvVarConfig, 'MY_APP_X', apply=int),
         )
 
     app = MyApp()

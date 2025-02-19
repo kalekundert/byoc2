@@ -11,18 +11,18 @@ from typing import Union, Optional, TypeVar, Any, Callable
 
 T = TypeVar('T')
 
-class CastFuncs:
+class Pipeline:
     """
-    A collection of user-specified cast functions.
+    A collection of user-specified functions.
 
-    This class abstracts two aspects of handling the *cast* functions that 
+    This class abstracts two aspects of handling the *apply* functions that 
     users can provide to both getters and parameters:
 
     1. The user can provide either a single callable or an iterable of 
        callables.  This class converts either input into a list.  This list can 
        also be modified after the fact (e.g. by `toggle_param`).
 
-    2. If the cast function can accept certain optional keyword arguments, 
+    2. If the apply function can accept certain optional keyword arguments, 
        those arguments will be provided, to give extra information about the 
        context in which the function is being called.
     """
@@ -33,13 +33,14 @@ class CastFuncs:
                 if x is not None
         ]
 
-    def __call__(self, value, *, app, meta):
+    def __call__(self, value, **kwargs):
+        kwarg_specs = [KwOnly(**{k: v}) for k, v in kwargs.items()]
+
         for f in self.funcs:
             value = smartcall.call(
                     f,
                     PosOnly(value, required=True),
-                    KwOnly(app=app),
-                    KwOnly(meta=meta),
+                    *kwarg_specs,
             )
 
         return value
@@ -61,14 +62,15 @@ def relpath(
             *meta*.
 
         meta:
+            The metadata object indicating where the given value was loaded 
+            from.
 
         root_from_meta:
             A callable that returns the parent directory for relative paths, 
-            given a metadata object describing how the value in question was 
-            loaded. The default implementation assumes that the metadata object 
-            has a :attr:`location` attribute that specifies the path to the 
-            relevant file.  This will work if (i) the value was actually loaded 
-            from a file and (ii) the default pick function was used (i.e. 
+            given the above metadata object.  The default implementation 
+            assumes that the metadata object has a :attr:`~FileMeta.path` 
+            attribute.  This will work if (i) the value was actually loaded 
+            from a file and (ii) the default pick function was used (i.e.  
             `first`).  For other pick functions, you may need to modify this 
             argument accordingly.
 
