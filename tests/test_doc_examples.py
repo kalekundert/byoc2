@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import byoc
 import pytest
 import doctest
 import shelldoctest
@@ -18,13 +17,17 @@ SRC_DIR = ROOT_DIR / 'byoc'
 
 @dataclass
 class Document:
-    id: str
     path: Path
     lineno: int
     lines: List[str]
 
+    @property
+    def relpath(self):
+        return self.path.relative_to(ROOT_DIR)
+
 @dataclass
 class Example:
+    id: str
     doc: Document
     lineno: int
     indent: int
@@ -47,7 +50,6 @@ def find_rst_doc_examples():
             lines = f.readlines()
 
         doc = Document(
-                id=f'file={path.relative_to(ROOT_DIR)}',
                 path=path,
                 lineno=1,
                 lines=lines,
@@ -55,34 +57,42 @@ def find_rst_doc_examples():
         yield from parse_doc_examples(doc)
 
 def find_py_doc_examples():
-    import inspect
 
-    # Parse each docstring separately, to prevent examples from spanning 
-    # multiple functions.  This unfortunately makes it a little harder to work 
-    # out file names and line numbers, but it has to be done.
+    # Use a very naive algorithm to detect docstrings.  This relies heavily on 
+    # the project using a consistent format for docstrings, namely:
+    # 
+    # - Always use triple double quotes.
+    # - Always put the quotes on their own line.
+    # - Don't ever use triple double quotes for ordinary multi-line strings.
+    # 
+    # Note that the reason why we need to parse docstrings is to prevent 
+    # examples in adjacent functions from sharing state.  I considered using 
+    # the `ast` module to do this, but decided against because (i) the AST 
+    # changes between version of python and (ii) the AST doesn't necessarily 
+    # provide accurate line numbers.
 
-    for name, obj in byoc.__dict__.items():
-        if not getattr(obj, '__module__', '') == 'byoc':
-            continue
+    for path in SRC_DIR.glob('**/*.py'):
+        doc = None
 
-        try:
-            path = Path(inspect.getsourcefile(obj))
-            lines, lineno = inspect.getsourcelines(obj)
-        except OSError:
-            continue
+        with open(path) as f:
+            for lineno, line in enumerate(f, 1):
 
-        try:
-            rel_path = path.relative_to(ROOT_DIR)
-        except ValueError:
-            continue
+                if doc is None:
+                    if line.strip().startswith('"""'):
+                        doc = Document(
+                                path=path,
+                                lineno=lineno + 1,
+                                lines=[],
+                        )
 
-        doc = Document(
-                id=f'file={rel_path}; name={name}',
-                path=path,
-                lineno=lineno,
-                lines=lines,
-        )
-        yield from parse_doc_examples(doc)
+                else:
+                    if line.strip().startswith('"""'):
+                        yield from parse_doc_examples(doc)
+                        doc = None
+                    else:
+                        doc.lines.append(line)
+
+        assert doc is None
 
 def parse_doc_examples(doc):
     # States:
@@ -109,13 +119,25 @@ def parse_doc_examples(doc):
         if not line.strip():
             return curr_state
 
+        example_kwargs = dict(
+                id=f'{doc.relpath}:{lineno}',
+                doc=doc,
+                lineno=lineno, 
+        )
+
         if curr_state == 'text':
 
             # Found tab: create a new example
             m = re.match(tab_pattern, line)
             if m:
-                curr_example = Example(doc, lineno, m['indent'])
-                curr_block = Block(m['arg'], m['indent'])
+                curr_example = Example(
+                        **example_kwargs,
+                        indent=m['indent'],
+                )
+                curr_block = Block(
+                        name=m['arg'],
+                        indent=m['indent'],
+                )
                 curr_example.blocks.append(curr_block)
                 examples.append(curr_example)
                 return 'tab'
@@ -125,7 +147,10 @@ def parse_doc_examples(doc):
             m = re.match(block_pattern, line)
             if m:
                 if curr_example is None:
-                    curr_example = Example(doc, lineno, m['indent'])
+                    curr_example = Example(
+                        **example_kwargs,
+                        indent=m['indent'],
+                    )
                     examples.append(curr_example)
 
                 curr_block = Block(m['arg'] or 'python', m['indent'])
@@ -195,7 +220,7 @@ def parse_doc_examples(doc):
 
 @pytest.mark.parametrize(
         'example', [
-            pytest.param(ex, id=f'{ex.doc.id}; line={ex.lineno}')
+            pytest.param(ex, id=ex.id)
             for ex in find_doc_examples()
         ],
 )
@@ -216,7 +241,7 @@ def test_doc_examples(tmp_path, example):
 
         if block.name in parsers:
             parser = parsers[block.name]
-            commands_i = parser.get_examples(source, f'{example.doc.path}:{block.lineno}')
+            commands_i = parser.get_examples(source, example.id)
 
             for command in commands_i:
                 command.lineno += block.lineno
@@ -253,8 +278,7 @@ def test_doc_examples(tmp_path, example):
             'chdir': os.chdir,
             'shell': shelldoctest.shell,
     }
-    name = f'{example.doc.path}:{example.lineno}'
-    tests = doctest.DocTest(commands, globals, name, example.doc.path, example.lineno, None)
+    tests = doctest.DocTest(commands, globals, example.id, example.doc.path, example.lineno, None)
 
     runner = PytestRunner(
             checker=EvalOutputChecker(),

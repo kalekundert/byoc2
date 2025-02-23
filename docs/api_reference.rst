@@ -21,18 +21,13 @@ Parameters
    :toctree: api
 
    byoc.param
-   byoc.getitem
-
-Getters
-=======
-.. autosummary::
-   :toctree: api
-
+   byoc.Getter
    byoc.Key
    byoc.Method
    byoc.Func
    byoc.Value
    byoc.PythonMeta
+   byoc.getitem
 
 Configs
 =======

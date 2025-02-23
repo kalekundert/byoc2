@@ -2,6 +2,11 @@ from .errors import NoValueFound
 from funcy import autocurry
 
 class ValuesIter:
+    """
+    ...
+
+    .. attribute:: meta
+    """
 
     def __init__(self, param, values):
         self.param = param
@@ -13,6 +18,9 @@ class ValuesIter:
 
     @property
     def with_meta(self):
+        """
+        Simultaneously iterate over values and their metadata.
+        """
         yield from self.values
 
 def first(it: ValuesIter):
