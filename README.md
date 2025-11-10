@@ -8,19 +8,34 @@
 [![Test coverage](https://img.shields.io/codecov/c/github/kalekundert/byoc)](https://app.codecov.io/github/kalekundert/byoc)
 [![Last commit](https://img.shields.io/github/last-commit/kalekundert/byoc?logo=github)](https://github.com/kalekundert/byoc)
 
-BYOC is a python library for integrating configuration values from any 
+BYOC is a python library for reading and merging configuration values from any 
 number/kind of sources, e.g. files, command-line arguments, environment 
-variables, databases, remote JSON APIs, etc.  The primary goal of BYOC is to 
-give your application complete control over its own configuration.  This means:
+variables, databases, remote JSON APIs, etc.  It is meant to solve the 
+following kinds of problems:
 
-- Complete control over how files, options, etc. are named and organized.
+- You generally want basic configuration behavior: command-line options that 
+  override environment variables that override configuration files.  But with 
+  exceptions: maybe it doesn't make sense for a required command-line argument 
+  to be specified in a file, or maybe it doesn't make sense for a complex, 
+  nested value that doesn't change often to be specified on the command line.
 
-- Complete control over how values from different config sources are parsed and 
-  merged.
+- You want multiple command line options that can assign different values to 
+  the same configuration value, e.g. `--color` and `--no-color`.
 
-- Support for any kind of file format, argument parsing library, etc.
+- For a few specific values, instead of having the command line override the 
+  configuration file like usual, you want to access both values.
 
-- No opinions about anything enforced by BYOC.
+- You want users to be able to define "preset" combinations of configuration 
+  values in a file, and then refer to those presets by name from the command 
+  line.
+
+- You want to read default configuration values from non-standard sources, like 
+  SQL databases or remote API endpoints, but still want to allow users to 
+  override those values from the command line or from local configuration 
+  files.
+
+- You want your application to have an interface that is complete and powerful, 
+  but doesn't feel auto-generated.
 
 Below is an example showing how BYOC works.  The first step is to define a 
 class with "parameters" that each specify how to look up one configuration 
@@ -62,7 +77,7 @@ class Greet:
     greeting = byoc.param(
             Key(DocoptConfig, '-g'),
             Key(YamlConfig, 'greeting'),
-            Value('Hello'),
+            Value("Hello"),
     )
 
 if __name__ == '__main__':
@@ -74,9 +89,9 @@ if __name__ == '__main__':
 We can configure this script from the command line:
 
 ```console
-$ ./greet 'Sir Bedevere'
+$ ./greet "Sir Bedevere"
 Hello, Sir Bedevere!
-$ ./greet 'Sir Lancelot' -g Goodbye
+$ ./greet "Sir Lancelot" -g Goodbye
 Goodbye, Sir Lancelot!
 ```
 
@@ -84,7 +99,7 @@ Goodbye, Sir Lancelot!
 
 ```console
 $ echo "greeting: Run away" > conf.yml
-$ greet 'Sir Robin'
+$ greet "Sir Robin"
 Run away, Sir Robin!
 ```
 
