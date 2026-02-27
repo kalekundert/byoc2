@@ -32,7 +32,7 @@ class Loader:
 
             It is not necessary to provide any attributes when instantiating a 
             Loader.  More attributes can be registered at any time (that is, 
-            before of after calling `load`) using the `add_attributes` method.
+            before or after calling `load`) using the `add_attributes` method.
 
         configs:
             A list of `Config` objects.  Each of these objects represents a 
@@ -476,8 +476,8 @@ def load(
       loaded so far.  This means that the order in which the configs are given 
       (which is the same as the order that they're loaded in) matters.  After 
       each config finishes loading, any intermediate parameter values that may 
-      have been calculated are discarded.  It is possible for one parameter to 
-      be calculated several times during the loading process, for this reason.
+      have been calculated are discarded.  For this reason, it is possible for 
+      one parameter to be calculated several times during the loading process.
 
     - The second step is to load a value for each of the app's parameters.  
       Parameters can depend on other parameters, so long as no circular 

@@ -17,8 +17,8 @@ class param:
     Arguments:
         getters:
             Any number of `Getter` objects.  Each getter specifies a different 
-            way to generate a value (or values) for this parameter.  The 
-            :paramref:`pick` argument determines which of these values is 
+            way to generate one or more values for this parameter.  The 
+            :paramref:`pick` argument determines which of these values are  
             actually used.
 
             The most commonly-used getter is `Key`, which is used to look up 
@@ -55,11 +55,13 @@ class param:
             Other common choices are :func:`~byoc.list` and `merge_dicts`.
 
             This function should accept one argument: an iterable over the 
-            values produced by the getters.  Each value is generated 
-            on-demand, so any values that are not needed (e.g. the second, if 
-            you are only using the first) are never generated.  It's possible 
-            that looking up a value could be expensive, so this ensures that 
-            lookups only happen when the value will be used.
+            values produced by the getters.  The actual iterable that BYOC 
+            passes to this function is a `ValuesIter` object.  This object 
+            invokes the getters on-demand, so any values that are not needed 
+            (e.g. the second, if you are only using the first) are never 
+            generated.  It's possible that looking up a value could be 
+            expensive, so this ensures that lookups only happen when the value 
+            might be used.
 
             One important responsibility of the pick function is to preserve 
             the metadata associated with each value.  That is, to produce a 
@@ -70,12 +72,12 @@ class param:
             directly.  If a list of values are picked, those values' metadata 
             are likewise combined into a list.
 
-            The metadata is made available to the pick function via the 
-            iterable argument described above.  Specifically, that argument is 
-            a `ValuesIter` object.  If you treat this object like a normal 
-            iterator, it will simply iterate over the relevant values.  This 
-            allows the use of metadata-unaware pick functions.  However, this 
-            object also has:
+            The metadata is made available to the pick function via 
+            aforementioned `ValuesIter` object.  If you treat this object like 
+            a normal iterator, it will simply iterate over the relevant values.  
+            This allows the use of metadata-unaware pick functions, if you 
+            don't mind losing the metadata.  However, the `ValuesIter` object 
+            also has:
 
             - A `with_meta` property that iterates simultaneously over the 
               relevant values and their corresponding metadata.
