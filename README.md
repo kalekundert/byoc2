@@ -8,8 +8,8 @@
 [![Test coverage](https://img.shields.io/codecov/c/github/kalekundert/byoc)](https://app.codecov.io/github/kalekundert/byoc)
 [![Last commit](https://img.shields.io/github/last-commit/kalekundert/byoc?logo=github)](https://github.com/kalekundert/byoc)
 
-BYOC is a python library for reading and merging configuration values from any 
-number/kind of sources, e.g. files, command-line arguments, environment 
+BYOC is a python library for loading and combining configuration values from 
+any number/kind of sources, e.g. files, command-line arguments, environment 
 variables, databases, remote JSON APIs, etc.  It is meant to solve the 
 following kinds of problems:
 
@@ -23,7 +23,7 @@ following kinds of problems:
   the same configuration value, e.g. `--color` and `--no-color`.
 
 - For a few specific values, instead of having the command line override the 
-  configuration file like usual, you want to access both values.
+  configuration file like usual, you want access to both values.
 
 - You want users to be able to define "preset" combinations of configuration 
   values in a file, and then refer to those presets by name from the command 
