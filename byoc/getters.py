@@ -1,20 +1,70 @@
-from typing import Callable, Any
+from typing import Callable, Any, Iterable
 from .configs import Config
 from .apply import Pipeline
 from .utils import identity
 from dataclasses import dataclass
 
 class Getter:
+    """
+    Base class for objects that retrieve configuration values.
 
-    def iter_values(self, app, configs):
+    Each getter describes how to retrieve possible configuration values for a 
+    parameter.  When defining a parameter, 
+
+    Getter objects are meant to be passed to `param`, where they specify the 
+    order in which specific configuration values are to be retrieved.  Each 
+    getter object can retrieve values in any way it sees fit.  The getters 
+    provided by BYOC—`Key`, `Method`, `Func`, and `Value`—should cover the vast 
+    majority of use-cases, but it's also possible to create custom getters.
+
+    The getter API is just one method: `iter_values`.  This method is called 
+    during `load` and should yield any values appropriate for the application 
+    and config objects being loaded, along with the corresponding metadata.  
+    Typically, additional information about the values to retrieve will be 
+    provided when the getter is instantiated, but this isn't part of the API.
+    """
+
+    def iter_values(self, app: Any, configs: list[Config]) -> Iterable[tuple[Any, Any]]:
         """
-        Yield (value, meta) tuples.
+        Yield the values retrieved by this getter.
+
+        Arguments:
+            app: The object being loaded.
+            configs: The list of `Config` objects being used to load the app.
+
+        Return:
+            An iterable of (value, meta) tuples.
+
+        This method is typically implemented as a generator, but any kind of 
+        iterable return value is supported.
         """
         raise NotImplementedError
 
 class Key(Getter):
+    """
+    Lookup specific values in the data structures loaded by `Config` objects.
 
-    def __init__(self, config_cls, key, *, apply=identity):
+    Arguments:
+
+        config_cls:
+            A `Config` class.  Only configs of this class (subclasses included) 
+            will be searched for values.  
+
+        key:
+
+        apply:
+            One or more functions used to transform the values produced by this 
+            getter.  See :paramref:`param.apply` for details.
+
+    This is the most commonly used getter.  Broadly speaking, it requires two 
+    pieces of information: (i) the set of configs to search, and (ii) the key 
+    to look up in each config.  
+
+    The basic idea is to specify (i) a 
+    group of configs to check and (ii) 
+    """
+
+    def __init__(self, config_cls: type[Config], key: Any, *, apply=identity):
         self.config_cls = config_cls
         self.key = key
         self.apply = Pipeline(apply)
@@ -61,6 +111,13 @@ class PythonMeta:
     line: int
 
 def _get_python_meta():
+    """
+    Return the file and line number where `Method`, `Func`, or `Value` was 
+    called from.
+
+    This function is designed to work when called from the constructors of the 
+    above classes.
+    """
     import inspect
 
     local_frame = inspect.currentframe()
